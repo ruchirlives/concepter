@@ -1,10 +1,9 @@
 # Concepter Web - Docker Deployment Guide
 
 This guide provides setup instructions to deploy the Concepter Web application via Docker.
-Copyright (c) 2025 Ruchir Shah
-Licensed under the GNU GPLv3. See [LICENSE](./LICENSE) file for details.
-
-For details on included open-source components, see the [NOTICE](./NOTICE) file.
+* Copyright (c) 2025 Ruchir Shah
+* Licensed under the GNU GPLv3. See [LICENSE](./LICENSE) file for details.
+* For details on included open-source components, see the [NOTICE](./NOTICE) file.
 
 ---
 
@@ -79,7 +78,7 @@ This script:
 
 ## 🚫 .gitignore Reminder
 
-Ensure `.env`, `.pem`, and `credentials/` are listed in `.gitignore` so they aren't tracked by Git.
+Ensure `.env`, `.pem` are listed in `.gitignore` so they aren't tracked by Git.
 ---
 
 ## 🚀 Local Docker Run (Optional)
@@ -88,10 +87,7 @@ If testing locally:
 
 ```powershell
 docker build -t concepter-web .
-docker run -p 8080:8080 \
-  --env-file .env \
-  -v "$PWD/credentials:/app/credentials" \
-  concepter-web
+docker run -p 8080:8080 --env-file .env concepter-web
 ```
 
 ---
@@ -101,6 +97,7 @@ docker run -p 8080:8080 \
 If deployed to Google Cloud Run:
 
 * Visit the service URL from `gcloud run deploy` output
+* Make sure to add your secrets and cloud environment variables 
 * Check logs via:
 
 ```bash
