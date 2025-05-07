@@ -64,30 +64,7 @@ function ShouldIgnoreFile($file) {
     return $false
 }
 
-# Helper function to copy symlink directory contents without copying the symlink itself
-function Copy-SymlinkDirectoryContents {
-    param (
-        [string]$symlinkPath,
-        [string]$destinationPath
-    )
 
-    $targetPath = (Resolve-Path $symlinkPath).Path
-    if (Test-Path $targetPath -PathType Container) {
-        Write-Host "Copying folder contents from: $targetPath"
-        if (-not (Test-Path $destinationPath)) {
-            New-Item -ItemType Directory -Path $destinationPath
-        }
-
-        Get-ChildItem -Path $targetPath | ForEach-Object {
-            $destinationFilePath = "$destinationPath\$($_.Name)"
-            if ($_.PSIsContainer) {
-                Copy-Item -Path $_.FullName -Recurse -Destination $destinationFilePath -Force
-            } else {
-                Copy-Item -Path $_.FullName -Destination $destinationFilePath -Force
-            }
-        }
-    }
-}
 
 # Copy the contents of the source directory to the staging directory, excluding symlinks and .dockerignore patterns
 Get-ChildItem -Path $sourceDirectory | Where-Object { $_.Name -ne "staging" } | ForEach-Object {
@@ -96,19 +73,10 @@ Get-ChildItem -Path $sourceDirectory | Where-Object { $_.Name -ne "staging" } | 
         return
     }
 
-    if ($_.LinkType -eq "SymbolicLink" -or $_.LinkType -eq "Junction") {
-        $symlinkTarget = (Resolve-Path $_.FullName).Path
-        $destinationPath = "$stagingDirectory\$($_.Name)"
-
-        if (Test-Path $symlinkTarget -PathType Container) {
-            Copy-SymlinkDirectoryContents -symlinkPath $symlinkTarget -destinationPath $destinationPath
-        } else {
-            Write-Host "Copying file from symlink target: $symlinkTarget"
-            Copy-Item -Path $symlinkTarget -Destination $stagingDirectory -Force
-        }
+    if ($_.PSIsContainer) {
+        Copy-Item -Recurse -Force -Path $_.FullName -Destination "$stagingDirectory\$($_.Name)"
     } else {
-        Write-Host "Copying file or directory: $($_.FullName)"
-        Copy-Item -Path $_.FullName -Destination $stagingDirectory -Force
+        Copy-Item -Force -Path $_.FullName -Destination "$stagingDirectory\$($_.Name)"
     }
 }
 

@@ -15,7 +15,7 @@ dist/
 build/
 
 # React build (if it's symlinked and rebuilt during deployment)
-react-build/
+# react-build/
 
 # Docker
 .dockerignore
