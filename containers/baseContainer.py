@@ -141,7 +141,7 @@ class ConceptContainer(Container):
         print(mermaid_text)
 
         # Save to file
-        exporter.save_to_file("output.mmd")
+        # exporter.save_to_file("output.mmd")
         return mermaid_text
 
     def create_rtf(self):

@@ -14,8 +14,6 @@ class MermaidExporter:
             self.elements.append(f'{node_id}["{description}"]')
         else:
             self.elements.append(f"{node_id}")
-
-        # Add url functionality in format: click A callback "Tooltip for a callback"
         self.elements.append(f'click {node_id} href "javascript:callback(\'{node_id}\');" "{node_id}"')
 
     def add_edge(self, from_node, to_node, label=None):
@@ -30,24 +28,7 @@ class MermaidExporter:
             mermaid_str += f"  {element}\n"
         return mermaid_str
 
+    # Optional: remove this if you never need to save to file
     def save_to_file(self, filename):
         with open(filename, "w") as file:
             file.write(self.to_mermaid())
-
-
-# Example usage
-if __name__ == "__main__":
-    exporter = MermaidExporter()
-    exporter.set_diagram_type("td")  # top-down diagram
-    exporter.add_node("A", "Start Node")
-    exporter.add_node("B", "Second Node")
-    exporter.add_edge("A", "B", "Transition")
-    exporter.add_node("C", "Third Node")
-    exporter.add_edge("B", "C")
-
-    # Export to Mermaid text
-    mermaid_text = exporter.to_mermaid()
-    print(mermaid_text)
-
-    # Save to file
-    exporter.save_to_file("output.mmd")

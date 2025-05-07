@@ -99,4 +99,6 @@ Start-Sleep -Seconds 10
 Remove-Item -Recurse -Force $stagingDirectory
 
 docker push gcr.io/concepter/concepter-web
+
+gcloud config set project concepter
 gcloud run deploy concepter-web --image gcr.io/concepter/concepter-web --platform managed --region europe-west2 --allow-unauthenticated
