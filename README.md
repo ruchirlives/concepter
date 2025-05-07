@@ -39,7 +39,7 @@ MONGO_CLOUD_PATH =
 
 ### 🔑 Required Files
 
-* Place your `your-service-account.json` and any `.pem` or cert files inside a local folder called `credentials/`.
+* Place your Mongo .pem credential file into your HOME folder, the HOME specified in .env
 
 Ensure the Dockerfile or your Docker run command mounts this folder correctly.
 
@@ -81,7 +81,6 @@ This script:
 ## 🚫 .gitignore Reminder
 
 Ensure `.env`, `.pem`, and `credentials/` are listed in `.gitignore` so they aren't tracked by Git.
-Put your .pem into your HOME folder, the HOME specified in .env
 ---
 
 ## 🚀 Local Docker Run (Optional)
