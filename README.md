@@ -1,7 +1,7 @@
 # Concepter Web - Docker Deployment Guide
 
 This guide provides setup instructions to deploy the Concepter Web application via Docker.
-Copyright (c) 2024 Ruchir Shah
+Copyright (c) 2025 Ruchir Shah
 Licensed under the GNU GPLv3. See LICENSE file for details.
 
 For details on included open-source components, see the [NOTICE](./NOTICE) file.
