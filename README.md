@@ -23,19 +23,8 @@ Concepter Web is a Python-based backend that optionally integrates with a React 
 Before building or running the app, create a `.env` file in the project root with the following variables:
 
 ```env
-NEO4J_URL=
-NEO4J_USER=
-NEO4J_PASSWORD=
-
-# Local Documents
 HOME = 
-
-# ASTRA DB
 OPENAI_API_KEY = 
-ASTRADB_TOKEN = 
-ASTRADB_ENDPOINT = 
-ASTRADB_KEYSPACE = e.g. default_keyspace
-
 RUNTIME_ENV=local
 
 # MONGODB
