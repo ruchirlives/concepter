@@ -33,13 +33,13 @@ RUNTIME_ENV=local
 
 # MONGODB
 MONGO_URL = 
-MONGO_CERT_NAME = 
-MONGO_CLOUD_PATH = 
+MONGO_CERT_NAME =  # ending .pem
+MONGO_CLOUD_PATH =  # Cloud runtime location of .pem file
 ```
 
 ### 🔑 Required Files
 
-* Place your Mongo .pem credential file into your HOME folder, the HOME specified in .env
+* If using local runtime, you need to place your Mongo .pem credential file into your HOME folder, the HOME specified in .env
 * Ensure the Dockerfile or your Docker run command mounts this folder correctly.
 
 ---
