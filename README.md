@@ -40,8 +40,7 @@ MONGO_CLOUD_PATH =
 ### 🔑 Required Files
 
 * Place your Mongo .pem credential file into your HOME folder, the HOME specified in .env
-
-Ensure the Dockerfile or your Docker run command mounts this folder correctly.
+* Ensure the Dockerfile or your Docker run command mounts this folder correctly.
 
 ---
 
