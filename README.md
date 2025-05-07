@@ -87,9 +87,7 @@ If testing locally:
 
 ```powershell
 docker build -t concepter-web .
-docker run -p 8080:8080 \
-  --env-file .env \
-  concepter-web
+docker run -p 8080:8080 --env-file .env concepter-web
 ```
 
 ---
