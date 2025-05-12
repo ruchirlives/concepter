@@ -17,10 +17,6 @@ build/
 # React build (if it's symlinked and rebuilt during deployment)
 # react-build/
 
-# Docker
-.dockerignore
-dockerfile
-
 # Others
 *.log
 output.mmd
