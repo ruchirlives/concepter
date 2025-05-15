@@ -7,6 +7,12 @@ options:
     - BUILDKIT_INLINE_CACHE=1
 
 steps:
+  # Step 1: Pull the cache image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - pull
+      - gcr.io/$PROJECT_ID/concepter-web:cache-prime
+
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - build
