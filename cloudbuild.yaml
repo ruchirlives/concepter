@@ -1,4 +1,4 @@
-# cloudbuild.yaml for efficient Docker builds with caching
+# cloudbuild.yaml for efficient Docker builds with persistent cache refresh
 
 options:
   machineType: E2_HIGHCPU_8
@@ -10,10 +10,12 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - build
-      - '--tag=gcr.io/$PROJECT_ID/concepter:$COMMIT_SHA'
-      - '--cache-from=gcr.io/$PROJECT_ID/concepter:$COMMIT_SHA'
+      - '--tag=gcr.io/$PROJECT_ID/-web:$COMMIT_SHA'
+      - '--tag=gcr.io/$PROJECT_ID/-web:cache-prime'
+      - '--cache-from=gcr.io/$PROJECT_ID/-web:cache-prime'
       - '--build-arg=BUILDKIT_INLINE_CACHE=1'
       - '.'
 
 images:
-  - 'gcr.io/$PROJECT_ID/concepter:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/-web:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/-web:cache-prime'
