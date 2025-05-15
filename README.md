@@ -23,7 +23,7 @@ Concepter Web is a Python-based backend that optionally integrates with a React 
 
 ## ⚙️ Environment Setup
 
-Before building or running the app, create a `.env` file in the project root with the following variables:
+Before building or running the app, create a `.env` file in the project root with the following variables.
 
 ```env
 HOME = 
