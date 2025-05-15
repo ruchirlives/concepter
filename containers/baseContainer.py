@@ -1,6 +1,7 @@
 from helpers.random_names import random_names
 from container_base import Container, baseTools
-from handlers.openai_handler import generate_piece_name, categorize_containers, get_relationships_from_openai, get_embeddings
+from handlers.openai_handler import generate_piece_name, categorize_containers, \
+    get_relationships_from_openai, get_embeddings
 from typing import List, Any
 from handlers.repository_handler import ContainerRepository
 
