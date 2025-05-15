@@ -1,5 +1,6 @@
 # Use the official Python image
 FROM python:alpine
+ARG BUILDKIT_INLINE_CACHE=1
 
 # Set env for clearer logs
 ENV PYTHONUNBUFFERED=1
