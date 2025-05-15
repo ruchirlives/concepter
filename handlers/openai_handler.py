@@ -18,7 +18,7 @@ def get_openai_client():
     return OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 
-def get_embeddings(query, client):
+def get_embeddings(query, client=get_openai_client()):
     embeddings = client.embeddings.create(
         model="text-embedding-ada-002",
         input=[query],

@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 import os
+import numpy as np
 from container_base import Container, baseTools
 from containers.projectContainer import ProjectContainer
 import logging
@@ -8,7 +9,76 @@ from time import sleep
 from handlers.mongodb_handler import delete_project
 
 
-class FlaskServer:
+# HELPER FUNCTIONS =========================================================
+class ServerHelperFunctions:
+    def serialize_container_info(self, containers):
+        export = []
+        for container in containers:
+            if not container.getValue("id"):
+                id = container.assign_id()
+                container.setValue("id", id)
+
+            if container not in self.container_class.instances:
+                self.container_class.instances.append(container)
+
+            id = container.getValue("id")
+            Name = container.getValue("Name")
+            StartDate = container.getValue("StartDate")
+            EndDate = container.getValue("EndDate")
+            TimeRequired = container.getValue("TimeRequired")
+            Horizon = container.getValue("Horizon")
+            tags = container.getValue("Tags")
+            if tags:
+                tags = ",".join(tags)
+            else:
+                tags = ""
+
+            export.append(
+                {
+                    "id": id,
+                    "Name": Name,
+                    "Tags": tags,
+                    "Description": container.getValue("Description"),
+                    "StartDate": StartDate,
+                    "EndDate": EndDate,
+                    "TimeRequired": TimeRequired,
+                    "Horizon": Horizon,
+                }
+            )
+        return export
+
+    def add_child_with_tags(self, container: ProjectContainer, child):
+        container.add_container(child)
+        # For each tag in the parent's Tags array, add it to the child unless it already exists
+        parent_tags = container.getValue("Tags") or []
+        child_tags = child.getValue("Tags") or []
+        if parent_tags and child_tags:
+            for tag in parent_tags:
+                if tag not in child_tags and tag != "pieces" and tag != "group":
+                    child_tags.append(tag)
+        child.setValue("Tags", child_tags)
+
+    def vector_match(self, parent_z, child_z):
+        # Ensure inputs are numpy arrays
+        if parent_z is None or child_z is None:
+            return 0.0
+
+        parent_z = np.array(parent_z)
+        child_z = np.array(child_z)
+
+        # Normalize vectors
+        norm_parent = np.linalg.norm(parent_z)
+        norm_child = np.linalg.norm(child_z)
+
+        if norm_parent == 0 or norm_child == 0:
+            return 0.0
+
+        similarity = np.dot(parent_z, child_z) / (norm_parent * norm_child)
+        return float(similarity)
+
+
+# FLASK SERVER =========================================================
+class FlaskServer(ServerHelperFunctions):
     def __init__(self, container_class: Container, port=8080):
         self.app = Flask(__name__, static_folder="../react-build")
         CORS(self.app)
@@ -42,6 +112,8 @@ class FlaskServer:
         )
 
         self.app.add_url_rule("/export_selected", "export_selected", self.export_containers, methods=["POST"])
+        self.app.add_url_rule("/embed_containers", "embed_containers", self.embed_containers, methods=["POST"])
+        self.app.add_url_rule("/add_similar", "add_similar", self.add_similar, methods=["POST"])
         self.app.add_url_rule("/build_relationships", "build_relationships", self.build_relationships, methods=["POST"])
         self.app.add_url_rule("/delete_containers", "delete_containers", self.delete_containers, methods=["POST"])
         self.app.add_url_rule("/clear_containers", "clear_containers", self.clear_containers, methods=["GET"])
@@ -157,6 +229,21 @@ class FlaskServer:
         project_name = data["project_name"]
         self.container_class.save_project_to_db(project_name)
         return jsonify({"message": "Containers saved successfully"})
+
+    def embed_containers(self):
+        data = request.get_json()
+        container_ids = data["containers"]
+        containers = []
+        for container_id in container_ids:
+            container = self.container_class.get_instance_by_id(container_id)
+            if container:
+                # Skip containers that are already embedded
+                if container.getValue("z") is not None:
+                    continue
+                containers.append(container)
+
+        self.container_class.embed_containers(containers)
+        return jsonify({"message": "Containers embedded successfully"})
 
     def build_relationships(self):
         data = request.get_json()
@@ -328,6 +415,53 @@ class FlaskServer:
         self.container_class.rekey_all_ids()
         return jsonify({"message": "Rekey requested successfully"})
 
+    def add_similar(self):
+        data = request.get_json()
+        children_ids = data["children_ids"]
+        parent_id = data["parent_id"]
+        container: ProjectContainer = self.container_class.get_instance_by_id(parent_id)
+
+        # Does parent container have z?
+        # If not, embed parent container
+
+        parent_z = container.getValue("parent_z")
+        if parent_z is None:
+            print("Parent container has no z, embedding parent container")
+            container.embed_containers([container])
+            parent_z = container.getValue("z")
+
+        counter = 0
+        candidate_children = []
+
+        for child_id in children_ids:
+            child = self.container_class.get_instance_by_id(child_id)
+            if child not in container.getChildren() and child != container:
+                child_z = child.getValue("z")
+                if child_z is None:
+                    # skip if z is None
+                    continue
+
+                # Vector match parent_z and child_z
+                score = self.vector_match(parent_z, child_z)
+                if score > 0.8:
+                    # Add to candidates
+                    candidate_children.append(child)
+                    counter += 1
+
+        # Sort candidates by score
+        candidate_children.sort(key=lambda x: self.vector_match(parent_z, x.getValue("z")), reverse=True)
+
+        # Add all candidates to the parent container
+        for child in candidate_children[:5]:
+            # Only add if the child is not already a child of the parent
+            if child not in container.getChildren() and child != container:
+                # Add the child to the parent container
+                print("Adding similar container: " + str(child.getValue("Name")))
+                # Add the child to the parent container
+                self.add_child_with_tags(container, child)
+
+        return jsonify({"message": f"Top 5 scoring of {counter} similar containers added successfully"})
+
     def add_children(self):
         sleep(0.05)
         data = request.get_json()
@@ -347,15 +481,8 @@ class FlaskServer:
 
             # Only add if the child is not already a child of the parent
             if child not in container.getChildren() and child != container:
-                container.add_container(child)
-                # For each tag in the parent's Tags array, add it to the child unless it already exists
-                parent_tags = container.getValue("Tags") or []
-                child_tags = child.getValue("Tags") or []
-                if parent_tags and child_tags:
-                    for tag in parent_tags:
-                        if tag not in child_tags and tag != "pieces" and tag != "group":
-                            child_tags.append(tag)
-                child.setValue("Tags", child_tags)
+                self.add_child_with_tags(container, child)
+
         return jsonify({"message": "Children added successfully"})
 
     def remove_children(self):
@@ -394,16 +521,9 @@ class FlaskServer:
                 if child_id is None:
                     continue
 
-                children.append({
-                    "id": child_id,
-                    "Name": child_name,
-                    "position": pos
-                })
+                children.append({"id": child_id, "Name": child_name, "position": pos})
 
-            result.append({
-                "container_id": cid,
-                "children": children
-            })
+            result.append({"container_id": cid, "children": children})
 
         return jsonify(result)
 
@@ -467,42 +587,6 @@ class FlaskServer:
             return jsonify({"message": "Position set successfully"})
         else:
             return jsonify({"message": "Container not found"}), 404
-
-    def serialize_container_info(self, containers):
-        export = []
-        for container in containers:
-            if not container.getValue("id"):
-                id = container.assign_id()
-                container.setValue("id", id)
-
-            if container not in self.container_class.instances:
-                self.container_class.instances.append(container)
-
-            id = container.getValue("id")
-            Name = container.getValue("Name")
-            StartDate = container.getValue("StartDate")
-            EndDate = container.getValue("EndDate")
-            TimeRequired = container.getValue("TimeRequired")
-            Horizon = container.getValue("Horizon")
-            tags = container.getValue("Tags")
-            if tags:
-                tags = ",".join(tags)
-            else:
-                tags = ""
-
-            export.append(
-                {
-                    "id": id,
-                    "Name": Name,
-                    "Tags": tags,
-                    "Description": container.getValue("Description"),
-                    "StartDate": StartDate,
-                    "EndDate": EndDate,
-                    "TimeRequired": TimeRequired,
-                    "Horizon": Horizon,
-                }
-            )
-        return export
 
     def delete_project(self):
         """

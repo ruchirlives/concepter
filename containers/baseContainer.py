@@ -1,12 +1,13 @@
 from helpers.random_names import random_names
 from container_base import Container, baseTools
-from handlers.openai_handler import generate_piece_name, categorize_containers, get_relationships_from_openai
+from handlers.openai_handler import generate_piece_name, categorize_containers, get_relationships_from_openai, get_embeddings
 from typing import List, Any
 from handlers.repository_handler import ContainerRepository
 
 # from tkinter import simpledialog
 import bson
 import pickle
+
 
 class ConceptContainer(Container):
     # Class‐level repository reference (set during app startup)
@@ -15,7 +16,7 @@ class ConceptContainer(Container):
     # Class variables
     random_names = random_names
     class_values = Container.class_values.copy()
-    class_values.update({"Horizon": None, "Tags": []})
+    class_values.update({"Horizon": None, "Tags": [], "z": None})
 
     custom_values = {
         "Description": [
@@ -70,8 +71,8 @@ class ConceptContainer(Container):
 
         # remove the shadow on every direct subclass
         for cls in baseTools.__subclasses__():
-            if 'instances' in cls.__dict__:
-                delattr(cls, 'instances')
+            if "instances" in cls.__dict__:
+                delattr(cls, "instances")
         return "WORKED"
 
     @classmethod
@@ -112,6 +113,18 @@ class ConceptContainer(Container):
             if "task" in container.getValue("Tags"):
                 task_containers.append(container)
         return task_containers
+
+    @classmethod
+    def embed_containers(cls, containers):
+        # use openai get_embeddings to created embeddings in z variable
+
+        for container in containers:
+            # Get the description of the container
+            description = container.getValue("Description") or container.getValue("Name")
+            # Get the embedding for the description
+            z = get_embeddings(description)
+            # Set the embedding in the container
+            container.setValue("z", z)
 
     def export_mermaid(self, *args):
         from helpers.mermaidExporter import MermaidExporter
@@ -255,7 +268,7 @@ class ConceptContainer(Container):
         merged_container.setValue("Name", piece_name)
         merged_container.setValue("Description", "Brings together " + str(len(containers)) + " priorities.")
         # Set the tags for the merged container
-        merged_container.setValue("Tags", ["group"])
+        # merged_container.setValue("Tags", ["group"])
 
         return merged_container
 
