@@ -39,6 +39,39 @@ def format_text(text: str) -> str:
     return html
 
 
+def generate_relationship_description(subject=None, object=None):
+    """
+    Generate a description of the relationship between the subject and the object.
+    """
+    if subject is None or object is None:
+        raise ValueError("Both subject and object must be provided.")
+    client = get_openai_client()
+
+    prompt = (
+        "You are a helpful assistant whose ONLY job is to output a descriptive relationship text of max 30 words.\n"
+        'Given the following subject and object, each with a "name" and a "description":\n'
+        "Please describe the relationship between the two in a short sentence.\n"
+        f"Subject: {subject}\n"
+        f"Object: {object}\n"
+        "Now strictly output the relationship description:"
+    )
+    # Parse the response
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        response_format={"type": "text"},
+        temperature=0.7,
+        max_completion_tokens=1500,  # increased budget
+        top_p=1,
+        frequency_penalty=0,
+        presence_penalty=0,
+        store=False,
+    )
+    raw = response.choices[0].message.content.strip()
+    # remove any markdown fences from the python output
+    return raw
+
+
 def generate_piece_name(descriptions):
     """
     Use embeddings of descriptions to collect the best containers to make its subcontainers

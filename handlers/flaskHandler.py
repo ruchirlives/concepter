@@ -3,10 +3,11 @@ from flask_cors import CORS
 import os
 import numpy as np
 from container_base import Container, baseTools
-from containers.projectContainer import ProjectContainer
+from containers.projectContainer import ProjectContainer, ConceptContainer
 import logging
 from time import sleep
 from handlers.mongodb_handler import delete_project
+from handlers.openai_handler import generate_relationship_description
 
 
 # HELPER FUNCTIONS =========================================================
@@ -80,6 +81,12 @@ class ServerHelperFunctions:
         embeddings = {}
         names = {}
 
+        # First check if start_id and end_id have valid embeddings
+        start_container = Container.get_instance_by_id(start_id)
+        end_container = Container.get_instance_by_id(end_id)
+        if start_container.getValue("z") is None or end_container.getValue("z") is None:
+            ConceptContainer.embed_containers([start_container, end_container])
+
         # Use a new list to avoid modifying selected_ids
         ids_to_use = list(selected_ids)
         if start_id not in ids_to_use:
@@ -131,7 +138,8 @@ class ServerHelperFunctions:
             beams = new_beams
 
         if not completed_chains:
-            raise ValueError("No valid reasoning chain ends at the target node.")
+            print("No valid reasoning chain ends at the target node.")
+            return []
 
         def average_similarity(path):
             sims = []
@@ -150,10 +158,15 @@ class ServerHelperFunctions:
         end_label = names.get(end_id, "target")
 
         for source_id, target_id in zip(best_chain, best_chain[1:]):
-            label = f"towards {end_label}"
             source_container = Container.get_instance_by_id(source_id)
             target_container = Container.get_instance_by_id(target_id)
-            source_container.setPosition(target_container, label)
+
+            subject = source_container.getValue("Description") or source_container.getValue("Name")
+            object = target_container.getValue("Description") or target_container.getValue("Name")
+
+            description = generate_relationship_description(subject=subject, object=object)
+            label = f"{start_container.getValue('Name')} to {end_container.getValue('Name')}"
+            source_container.setPosition(target_container, {"label": label, "description": description})
 
         return best_chain
 
@@ -196,9 +209,7 @@ class FlaskServer(ServerHelperFunctions):
         self.app.add_url_rule("/embed_containers", "embed_containers", self.embed_containers, methods=["POST"])
         self.app.add_url_rule("/add_similar", "add_similar", self.add_similar, methods=["POST"])
         self.app.add_url_rule("/build_relationships", "build_relationships", self.build_relationships, methods=["POST"])
-        self.app.add_url_rule(
-            "/build_chain_beam", "build_chain_beam", self.build_chain_beam, methods=["POST"]
-        )
+        self.app.add_url_rule("/build_chain_beam", "build_chain_beam", self.build_chain_beam, methods=["POST"])
         self.app.add_url_rule("/delete_containers", "delete_containers", self.delete_containers, methods=["POST"])
         self.app.add_url_rule("/clear_containers", "clear_containers", self.clear_containers, methods=["GET"])
         self.app.add_url_rule("/get_mermaid", "get_mermaid", self.export_mermaid, methods=["POST"])
@@ -343,11 +354,18 @@ class FlaskServer(ServerHelperFunctions):
 
     def build_chain_beam(self):
         data = request.get_json()
-        selected_ids = data["selected_ids"]
+        visible_ids = data["visible_ids"]
         start_id = data["start_id"]
         end_id = data["end_id"]
         max_jumps = data.get("max_jumps", 5)
         beam_width = data.get("beam_width", 3)
+
+        # filter selected ids to only those that have a z value
+        selected_ids = []
+        for id in visible_ids:
+            container = self.container_class.get_instance_by_id(id)
+            if container and container.getValue("z") is not None:
+                selected_ids.append(id)
 
         try:
             chain = self.build_reasoning_chain_beam(selected_ids, start_id, end_id, max_jumps, beam_width)
@@ -679,7 +697,7 @@ class FlaskServer(ServerHelperFunctions):
         # Set the position of a container
         source = self.container_class.get_instance_by_id(data["source_id"])
         target = self.container_class.get_instance_by_id(data["target_id"])
-        position = data["relationship_string"]
+        position = {"label": data["relationship_string"]}
         if source and target:
             source.setPosition(target, position)
             return jsonify({"message": "Position set successfully"})

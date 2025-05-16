@@ -1,7 +1,11 @@
 from helpers.random_names import random_names
 from container_base import Container, baseTools
-from handlers.openai_handler import generate_piece_name, categorize_containers, \
-    get_relationships_from_openai, get_embeddings
+from handlers.openai_handler import (
+    generate_piece_name,
+    categorize_containers,
+    get_relationships_from_openai,
+    get_embeddings,
+)
 from typing import List, Any
 from handlers.repository_handler import ContainerRepository
 
@@ -20,18 +24,7 @@ class ConceptContainer(Container):
     class_values.update({"Horizon": None, "Tags": [], "z": None})
 
     custom_values = {
-        "Description": [
-            "Strategic partnership development",
-            "Project management",
-            "Fundraising",
-            "Financial management",
-            "Marketing and communications",
-            "Human resources management",
-            "Governance",
-            "Legal",
-            "Digital innovation",
-            "Facilities management",
-        ],
+        "Description": [],
         "Position": ["resources", "prepares", "delivers", "supports", "consideration"],
         "Horizon": ["short", "medium", "long", "completed"],
     }
@@ -143,7 +136,8 @@ class ConceptContainer(Container):
                 # If has id use it, else use the .assign_id()
                 subcontainer_id = subcontainer.getValue("id") or subcontainer.assign_id()
                 exporter.add_node(subcontainer_id, subcontainer.name)
-                exporter.add_edge(container.getValue("id"), subcontainer_id, relationship)
+                label = relationship["description"] if type(relationship) is dict else relationship
+                exporter.add_edge(container.getValue("id"), subcontainer_id, label)
                 # Recursive call with incremented depth
                 add_container_to_mermaid(subcontainer, current_depth + 1, depth_limit)
 
@@ -336,4 +330,5 @@ class ConceptContainer(Container):
 
             # Add the relationship to the container
             # source_container.add_container(target_container, relationship)
-            source_container.setPosition(target_container, relationship)
+            position = {"label": relationship}
+            source_container.setPosition(target_container, position)
