@@ -76,6 +76,87 @@ class ServerHelperFunctions:
         similarity = np.dot(parent_z, child_z) / (norm_parent * norm_child)
         return float(similarity)
 
+    def build_reasoning_chain_beam(self, selected_ids, start_id, end_id, max_jumps, beam_width=3):
+        embeddings = {}
+        names = {}
+
+        # Use a new list to avoid modifying selected_ids
+        ids_to_use = list(selected_ids)
+        if start_id not in ids_to_use:
+            ids_to_use.insert(0, start_id)
+        if end_id not in ids_to_use:
+            ids_to_use.append(end_id)
+
+        for node_id in ids_to_use:
+            container = Container.get_instance_by_id(node_id)
+            if container:
+                embeddings[node_id] = container.getValue("z")
+                names[node_id] = container.name
+            else:
+                raise ValueError(f"Container with ID {node_id} not found.")
+
+        if start_id not in embeddings or end_id not in embeddings:
+            raise ValueError("Start or end node is missing from embeddings.")
+
+        beams = [[start_id]]
+        completed_chains = []
+
+        for _ in range(max_jumps):
+            new_beams = []
+
+            for path in beams:
+                current_id = path[-1]
+                current_vec = embeddings[current_id]
+                visited = set(path)
+
+                candidates = [
+                    (node_id, self.vector_match(current_vec, embeddings[node_id]))
+                    for node_id in ids_to_use
+                    if node_id not in visited
+                ]
+
+                top_candidates = sorted(candidates, key=lambda x: x[1], reverse=True)[:beam_width]
+
+                for next_id, _ in top_candidates:
+                    new_path = path + [next_id]
+                    if next_id == end_id:
+                        if new_path not in completed_chains:
+                            completed_chains.append(new_path)
+                    else:
+                        new_beams.append(new_path)
+
+            if not new_beams:
+                break  # no further expansions possible
+
+            beams = new_beams
+
+        if not completed_chains:
+            raise ValueError("No valid reasoning chain ends at the target node.")
+
+        def average_similarity(path):
+            sims = []
+            for a, b in zip(path, path[1:]):
+                vec_a = embeddings[a]
+                vec_b = embeddings[b]
+                try:
+                    sim = self.vector_match(vec_a, vec_b)
+                    sims.append(sim)
+                except Exception as e:
+                    print(f"Error computing similarity between {a} and {b}: {e}")
+                    raise e
+            return sum(sims) / len(sims)
+
+        best_chain = max(completed_chains, key=average_similarity)
+        end_label = names.get(end_id, "target")
+
+        for source_id, target_id in zip(best_chain, best_chain[1:]):
+            label = f"towards {end_label}"
+            source_container = Container.get_instance_by_id(source_id)
+            target_container = Container.get_instance_by_id(target_id)
+            source_container.setPosition(target_container, label)
+
+        return best_chain
+
 
 # FLASK SERVER =========================================================
 class FlaskServer(ServerHelperFunctions):
@@ -115,6 +196,9 @@ class FlaskServer(ServerHelperFunctions):
         self.app.add_url_rule("/embed_containers", "embed_containers", self.embed_containers, methods=["POST"])
         self.app.add_url_rule("/add_similar", "add_similar", self.add_similar, methods=["POST"])
         self.app.add_url_rule("/build_relationships", "build_relationships", self.build_relationships, methods=["POST"])
+        self.app.add_url_rule(
+            "/build_chain_beam", "build_chain_beam", self.build_chain_beam, methods=["POST"]
+        )
         self.app.add_url_rule("/delete_containers", "delete_containers", self.delete_containers, methods=["POST"])
         self.app.add_url_rule("/clear_containers", "clear_containers", self.clear_containers, methods=["GET"])
         self.app.add_url_rule("/get_mermaid", "get_mermaid", self.export_mermaid, methods=["POST"])
@@ -256,6 +340,20 @@ class FlaskServer(ServerHelperFunctions):
 
         self.container_class.build_relationships(containers)
         return jsonify({"message": "Relationships built successfully"})
+
+    def build_chain_beam(self):
+        data = request.get_json()
+        selected_ids = data["selected_ids"]
+        start_id = data["start_id"]
+        end_id = data["end_id"]
+        max_jumps = data.get("max_jumps", 5)
+        beam_width = data.get("beam_width", 3)
+
+        try:
+            chain = self.build_reasoning_chain_beam(selected_ids, start_id, end_id, max_jumps, beam_width)
+            return jsonify({"status": "success", "chain": chain})
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 400
 
     def categorize_containers(self):
         data = request.get_json() or {}
