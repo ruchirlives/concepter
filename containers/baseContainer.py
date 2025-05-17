@@ -152,6 +152,16 @@ class ConceptContainer(Container):
         # exporter.save_to_file("output.mmd")
         return mermaid_text
 
+    @classmethod
+    def get_reasoning_doc(cls, reasoning):
+        from handlers.rtf_handler import HTMLDocument
+        html = HTMLDocument()
+
+        html.add_content("Reasoning", "h1", newline=False)
+        html.add_content(reasoning, "p", newline=True)
+        doc = html.get_doc()
+        return doc
+
     def create_rtf(self):
         from handlers.rtf_handler import HTMLDocument
 

@@ -381,7 +381,8 @@ class FlaskServer(ServerHelperFunctions):
 
         try:
             narrative = self.build_reasoning_chain_beam(selected_ids, start_id, end_id, max_jumps, beam_width)
-            return jsonify({"status": "success", "narrative": narrative})
+            return jsonify({"message": "Reasoning chain built successfully", "narrative": narrative})
+
         except Exception as e:
             return jsonify({"status": "error", "message": str(e)}), 400
 
