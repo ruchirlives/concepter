@@ -2,7 +2,6 @@ from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 import os
 import numpy as np
-import pyperclip
 from container_base import Container, baseTools
 from containers.projectContainer import ProjectContainer, ConceptContainer
 import logging
@@ -177,8 +176,6 @@ class ServerHelperFunctions:
 
         # Copy narrative to clipboard
         argument = generate_reasoning_argument(reasoning=narrative)
-        pyperclip.copy(argument)
-        print("Copied to clipboard: " + argument)
 
         return argument
 
