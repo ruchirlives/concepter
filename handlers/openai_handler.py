@@ -71,6 +71,31 @@ def generate_relationship_description(subject=None, object=None):
     # remove any markdown fences from the python output
     return raw
 
+def generate_reasoning_argument(reasoning):
+    """
+    Generate a reasoning argument for the given reasoning.
+    """
+    client = get_openai_client()
+
+    prompt = (
+        "Please create a concise argument from the following graph reasoning chain. It needs to take the audience through a step by step yet concise understanding of the reasoning. Please prepend with an appropriate section title:\n"
+        f"{reasoning}\n"
+    )
+    # Parse the response
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        response_format={"type": "text"},
+        temperature=0.7,
+        max_completion_tokens=1500,  # increased budget
+        top_p=1,
+        frequency_penalty=0,
+        presence_penalty=0,
+        store=False,
+    )
+    raw = response.choices[0].message.content.strip()
+    # remove any markdown fences from the python output
+    return raw
 
 def generate_piece_name(descriptions):
     """

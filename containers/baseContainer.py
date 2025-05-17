@@ -33,10 +33,10 @@ class ConceptContainer(Container):
         super().__init__()
 
     # Overidden method
-    def getValue(self, key):
+    def getValue(self, key, ifNone=None):
         if key == "Information":
             return self.information()
-        return super().getValue(key)
+        return super().getValue(key, ifNone)
 
     def clear_descriptions(self, container_set):
         self.setValue("Description", "")
@@ -293,6 +293,15 @@ class ConceptContainer(Container):
             new_categories.append(category_container)
 
         return new_categories
+
+    def append_tags(self, tags):
+        # Append tags to the container
+        container = self
+        existing_tags = container.getValue("Tags", [])
+        for tag in tags:
+            if tag not in existing_tags and tag != "pieces" and tag != "group":
+                existing_tags.append(tag)
+        container.setValue("Tags", existing_tags)
 
     @classmethod
     def build_relationships(cls, containers):

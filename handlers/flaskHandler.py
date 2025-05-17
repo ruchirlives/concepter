@@ -2,12 +2,13 @@ from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 import os
 import numpy as np
+import pyperclip
 from container_base import Container, baseTools
 from containers.projectContainer import ProjectContainer, ConceptContainer
 import logging
 from time import sleep
 from handlers.mongodb_handler import delete_project
-from handlers.openai_handler import generate_relationship_description
+from handlers.openai_handler import generate_relationship_description, generate_reasoning_argument
 
 
 # HELPER FUNCTIONS =========================================================
@@ -51,13 +52,8 @@ class ServerHelperFunctions:
     def add_child_with_tags(self, container: ProjectContainer, child):
         container.add_container(child)
         # For each tag in the parent's Tags array, add it to the child unless it already exists
-        parent_tags = container.getValue("Tags") or []
-        child_tags = child.getValue("Tags") or []
-        if parent_tags and child_tags:
-            for tag in parent_tags:
-                if tag not in child_tags and tag != "pieces" and tag != "group":
-                    child_tags.append(tag)
-        child.setValue("Tags", child_tags)
+        parent_tags = container.getValue("Tags", [])
+        child.append_tags(parent_tags)
 
     def vector_match(self, parent_z, child_z):
         # Ensure inputs are numpy arrays
@@ -155,7 +151,15 @@ class ServerHelperFunctions:
             return sum(sims) / len(sims)
 
         best_chain = max(completed_chains, key=average_similarity)
-        end_label = names.get(end_id, "target")
+        label = f"{start_container.getValue('Name')} to {end_container.getValue('Name')}"
+        # shorten label to 20 chars
+        if len(label) > 20:
+            label = label[:20] + "..."
+        start_container.append_tags([label])
+        end_container.append_tags([label])
+
+        # Also build narrative
+        narrative = f"Reasoning chain from {start_container.getValue('Name')} to {end_container.getValue('Name')}"
 
         for source_id, target_id in zip(best_chain, best_chain[1:]):
             source_container = Container.get_instance_by_id(source_id)
@@ -165,10 +169,18 @@ class ServerHelperFunctions:
             object = target_container.getValue("Description") or target_container.getValue("Name")
 
             description = generate_relationship_description(subject=subject, object=object)
-            label = f"{start_container.getValue('Name')} to {end_container.getValue('Name')}"
-            source_container.setPosition(target_container, {"label": label, "description": description})
+            source_container.setPosition(target_container, {"label": [label], "description": description})
+            target_container.append_tags([label])
 
-        return best_chain
+            # Add to narrative
+            narrative += f"\n\n{subject} -> {object}: {description}"
+
+        # Copy narrative to clipboard
+        argument = generate_reasoning_argument(reasoning=narrative)
+        pyperclip.copy(argument)
+        print("Copied to clipboard: " + argument)
+
+        return argument
 
 
 # FLASK SERVER =========================================================
@@ -368,8 +380,8 @@ class FlaskServer(ServerHelperFunctions):
                 selected_ids.append(id)
 
         try:
-            chain = self.build_reasoning_chain_beam(selected_ids, start_id, end_id, max_jumps, beam_width)
-            return jsonify({"status": "success", "chain": chain})
+            narrative = self.build_reasoning_chain_beam(selected_ids, start_id, end_id, max_jumps, beam_width)
+            return jsonify({"status": "success", "narrative": narrative})
         except Exception as e:
             return jsonify({"status": "error", "message": str(e)}), 400
 
