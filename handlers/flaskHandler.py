@@ -550,7 +550,7 @@ class FlaskServer(ServerHelperFunctions):
         # Does parent container have z?
         # If not, embed parent container
 
-        parent_z = container.getValue("parent_z")
+        parent_z = container.getValue("z")
         if parent_z is None:
             print("Parent container has no z, embedding parent container")
             container.embed_containers([container])
@@ -569,6 +569,7 @@ class FlaskServer(ServerHelperFunctions):
 
                 # Vector match parent_z and child_z
                 score = self.vector_match(parent_z, child_z)
+                print("Score: " + str(score))
                 if score > 0.8:
                     # Add to candidates
                     candidate_children.append(child)
