@@ -697,8 +697,12 @@ class FlaskServer(ServerHelperFunctions):
 
             relationshipString = ""
             for container, position in positions:
-                if container == target:
-                    relationshipString += position or "" + "\n"
+                if container is target:
+                    if isinstance(position, dict):
+                        label = position.get("label", [])
+                    elif isinstance(position, str):
+                        label = position
+                    relationshipString += label + "\n"
             return jsonify({"relationshipString": relationshipString})
         else:
             return jsonify({"message": "Container not found"}), 404
