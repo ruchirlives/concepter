@@ -648,7 +648,7 @@ class FlaskServer(ServerHelperFunctions):
                 if child_id is None:
                     continue
 
-                children.append({"id": child_id, "Name": child_name, "position": pos})
+                children.append({"id": child_id, "name": child_name, "position": pos, "tags": child.getValue("Tags")})
 
             result.append({"container_id": cid, "children": children})
 
