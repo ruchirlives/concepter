@@ -71,6 +71,7 @@ def generate_relationship_description(subject=None, object=None):
     # remove any markdown fences from the python output
     return raw
 
+
 def generate_reasoning_argument(reasoning):
     """
     Generate a reasoning argument for the given reasoning.
@@ -97,13 +98,17 @@ def generate_reasoning_argument(reasoning):
     # remove any markdown fences from the python output
     return raw
 
+
 def generate_piece_name(descriptions):
     """
     Use embeddings of descriptions to collect the best containers to make its subcontainers
     """
     client = get_openai_client()
 
-    prompt = "Generate a label for the following piece without quotes, returning only the label and nothing else. The label should be short but still be able to communicate the key elements in the piece:\n\n"  # noqa
+    prompt = """
+    Generate a concise and really easy to comprehend label for the following text, re-using any acronyms, scheme names, or terminology that already appear in the text, but do not invent new acronyms or abbreviations. The label should highlight what is uniquely challenging or distinctive about the situation, and avoid generic or broad wording, but use easy to understand phrases like "not enough data at local level", or "we need [group x] to talk together". No quotes, just the label.:\n\n
+    """
+
     prompt += f"{descriptions}\n\n"
 
     # Use client to get completion
