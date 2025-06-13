@@ -8,10 +8,8 @@ class baseTools:
     instances = []
     random_names = {}
     class_values = {
+        "id": None,  # Unique identifier for the container
         "Name": "Unnamed",
-        "Description": "",
-        "Position": "",
-        "Information": "",
     }
 
     def __init__(self):
@@ -61,6 +59,10 @@ class baseTools:
     @property
     def name(self):
         return self.getValue("Name")
+
+    @name.setter
+    def name(self, value):
+        self.setValue("Name", value)
 
     @property
     def description(self):
@@ -160,6 +162,37 @@ class baseTools:
         Creates a deep copy of the container instance.
         :return: A new instance of the container with copied attributes.
         """
+        new_container = self.clone_single_container()
+
+        for container, position in self.containers:
+            cloned_subcontainer = container.clone_container()
+            new_container.containers.append((cloned_subcontainer, position))
+            self.instances.remove(cloned_subcontainer)  # Remove the original container from the instances list
+
+        return new_container
+
+    def duplicate_container(self):
+        """
+        Creates a deep copy of the container instance, including its subcontainers.
+        :return: A new instance of the container with copied attributes and subcontainers.
+        """
+        new_container = self.clone_single_container()
+
+        new_container.stream = copy.deepcopy(self.stream)
+
+        # Deepcopy the takes array
+        new_container.takes = copy.deepcopy(self.takes)
+
+        name = f"{self.getValue('Name')} (Copy)"
+        new_container.setValue("Name", name)
+
+        return new_container
+
+    def clone_single_container(self):
+        """
+        Creates a shallow copy of the container instance.
+        :return: A new instance of the container with copied attributes.
+        """
         # Clone the stream into a new container
         new_container = self.__class__()
         new_container.__dict__.update({k: v for k, v in self.__dict__.items()})
@@ -167,13 +200,13 @@ class baseTools:
         # Deepcopy the values array
         new_container.values = copy.deepcopy(self.values)
         new_container.containers = []
-        for container, position in self.containers:
-            new_container.containers.append((container.clone_container(), position))
+
         name = f"{self.getValue('Name')} (Clone)"
         new_container.setValue("Name", name)
 
         # unique id
         new_container.assign_id()
+
         return new_container
 
     @classmethod

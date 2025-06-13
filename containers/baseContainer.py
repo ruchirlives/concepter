@@ -136,7 +136,20 @@ class ConceptContainer(Container):
                 # If has id use it, else use the .assign_id()
                 subcontainer_id = subcontainer.getValue("id") or subcontainer.assign_id()
                 exporter.add_node(subcontainer_id, subcontainer.name)
-                label = relationship["description"] if type(relationship) is dict else relationship
+                try:
+                    if relationship is not None:
+                        # If relationship is a dict, use its description or label
+                        if isinstance(relationship, dict):
+                            label = relationship.get("description", relationship.get("label", ""))
+                        else:
+                            # If relationship is a string or other type, use it directly
+                            label = relationship
+                    else:
+                        label = ""
+
+                except Exception as e:
+                    print(f"Error getting relationship description: {e}")
+                    pass
                 exporter.add_edge(container.getValue("id"), subcontainer_id, label)
                 # Recursive call with incremented depth
                 add_container_to_mermaid(subcontainer, current_depth + 1, depth_limit)
@@ -155,6 +168,7 @@ class ConceptContainer(Container):
     @classmethod
     def get_reasoning_doc(cls, reasoning):
         from handlers.rtf_handler import HTMLDocument
+
         html = HTMLDocument()
 
         html.add_content("Reasoning", "h1", newline=False)

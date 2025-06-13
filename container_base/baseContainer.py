@@ -25,14 +25,18 @@ class Container(baseTools):
 
     @classmethod
     def get_all_instances(cls):
-        gc.collect()  # Force garbage collection
+        # gc.collect()  # Force garbage collection
         seen_ids = set()  # Track unique object IDs
-        all_objs = []
-        for obj in gc.get_objects():
-            try:
-                if isinstance(obj, cls) and id(obj) not in seen_ids:
-                    all_objs.append(obj)
-                    seen_ids.add(id(obj))  # Avoid duplicates
-            except ReferenceError:
-                pass  # Skip objects that may have been garbage collected
-        return all_objs
+
+        def recurse(inst, seen_ids=seen_ids):
+            if inst is None:
+                return
+            if inst not in seen_ids:
+                seen_ids.add(inst)
+                for child, _ in inst.containers:
+                    recurse(child, seen_ids)
+
+        for inst in cls.instances:
+            recurse(inst)
+
+        return seen_ids
