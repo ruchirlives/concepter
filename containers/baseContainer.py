@@ -312,7 +312,7 @@ class ConceptContainer(Container):
             cls.instances.append(category_container)
             # Link children by matching names
             for cont in containers:
-                if cont.getValue("Name") in item_names:
+                if cont.name in item_names:
                     category_container.add_container(cont, "includes")
             new_categories.append(category_container)
 

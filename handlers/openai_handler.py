@@ -106,7 +106,7 @@ def generate_piece_name(descriptions):
     client = get_openai_client()
 
     prompt = """
-    Generate a concise and really easy to comprehend label for the following text, re-using any acronyms, scheme names, or terminology that already appear in the text, but do not invent new acronyms or abbreviations. The label should highlight what is uniquely challenging or distinctive about the situation, and avoid generic or broad wording, but use easy to understand phrases like "not enough data at local level", or "we need [group x] to talk together". No quotes, just the label.:\n\n
+    Generate a concise and really easy to comprehend label for the following text, re-using any acronyms, scheme names, or terminology that already appear in the text, but do not invent new acronyms or abbreviations. The label should capture the unique essence about the description, and avoid generic or broad wording, but use easy to understand phrases like "lack of data at local level", or "The need for [group x] to talk together". No quotes, just the label.:\n\n
     """
 
     prompt += f"{descriptions}\n\n"
