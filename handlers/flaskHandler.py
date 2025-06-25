@@ -8,6 +8,7 @@ import logging
 from time import sleep
 from handlers.mongodb_handler import delete_project
 from handlers.openai_handler import generate_relationship_description, generate_reasoning_argument
+import datetime
 
 
 # HELPER FUNCTIONS =========================================================
@@ -24,20 +25,32 @@ class ServerHelperFunctions:
 
             id = container.getValue("id")
             Name = container.getValue("Name")
+            # only date, never time
             StartDate = container.getValue("StartDate")
+            if isinstance(StartDate, datetime.datetime):
+                StartDate = StartDate.date().isoformat()
+            elif isinstance(StartDate, datetime.date):
+                StartDate = StartDate.isoformat()
+            else:
+                StartDate = None
+
             EndDate = container.getValue("EndDate")
+            if isinstance(EndDate, datetime.datetime):
+                EndDate = EndDate.date().isoformat()
+            elif isinstance(EndDate, datetime.date):
+                EndDate = EndDate.isoformat()
+            else:
+                EndDate = None
+
             TimeRequired = container.getValue("TimeRequired")
             Horizon = container.getValue("Horizon")
-            tags = container.getValue("Tags")
-            if tags:
-                tags = ",".join(tags)
-            else:
-                tags = ""
+            tags = container.getValue("Tags") or []
+            tags = ",".join(tags)
 
             export.append(
                 {
-                    "id": id,
-                    "Name": Name,
+                    "id": container.getValue("id"),
+                    "Name": container.getValue("Name"),
                     "Tags": tags,
                     "Description": container.getValue("Description"),
                     "StartDate": StartDate,
@@ -278,29 +291,39 @@ class FlaskServer(ServerHelperFunctions):
 
     # Get containers tagged with task
     def get_task_containers(self):
-        # Return all containers tagged with task
-        containers = self.container_class.get_task_containers()
         items = []
-        for container in containers:
-            # Concatenate with new line the various fields
+        for c in self.container_class.get_task_containers():
+            sd = c.getValue("StartDate")
+            if isinstance(sd, datetime.datetime):
+                sd = sd.date().isoformat()
+            elif isinstance(sd, datetime.date):
+                sd = sd.isoformat()
+            else:
+                sd = "No start date"
+
+            ed = c.getValue("EndDate")
+            if isinstance(ed, datetime.datetime):
+                ed = ed.date().isoformat()
+            elif isinstance(ed, datetime.date):
+                ed = ed.isoformat()
+            else:
+                ed = "No end date"
+
             body = "<p>".join(
                 [
-                    container.getValue("Name") or "",
-                    "Description: " + (container.getValue("Description") or "No description provided"),
-                    "Starts " + str(container.getValue("StartDate") or "No start date"),
-                    "Ends " + str(container.getValue("EndDate") or "No end date"),
-                    "Required days " + str(container.getValue("TimeRequired") or "Not specified"),
-                    "Horizon " + (container.getValue("Horizon") or "Not set"),
-                    "Tagged as " + str(container.getValue("Tags") or "No tags"),
+                    c.getValue("Name") or "",
+                    "Starts " + sd,
+                    "Ends " + ed,
+                    # …
                 ]
             )
 
             item = {
-                "subject": container.getValue("Name"),
+                "subject": c.getValue("Name"),
                 "body": body,
             }
 
-            end_date = container.getValue("EndDate")
+            end_date = c.getValue("EndDate")
             if end_date:
                 item["end_date"] = str(end_date)
 
