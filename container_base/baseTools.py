@@ -24,7 +24,7 @@ class baseTools:
 
     @classmethod
     def set_instances(cls, new_instances):
-        baseTools.instances = new_instances  # explicitly refer to base class
+        baseTools.instances = list(new_instances)  # explicitly refer to base class
 
     def assign_id(self):
         unique_id = str(uuid.uuid4())
@@ -244,7 +244,7 @@ class baseTools:
         for container in cls.instances:
             cls.recurseFunc(container, add_container)
 
-        return all_containers
+        return list(all_containers)  # ✅ convert back to list before returning
 
     def recurseFunc(self, func, max_depth=5, current_depth=0, visited=None):
         if visited is None:
