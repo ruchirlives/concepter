@@ -721,6 +721,9 @@ class FlaskServer(ServerHelperFunctions):
             relationshipString = ""
             for container, position in positions:
                 if container is target:
+                    # skip if position is None
+                    if position is None:
+                        continue
                     if isinstance(position, dict):
                         label = position.get("label", [])
                     elif isinstance(position, str):
