@@ -251,3 +251,49 @@ def get_relationships_from_openai(items: list[dict[str, str]]) -> dict[str, list
     ]
 
     return relationships_list
+
+
+def distill_subject_object_pairs(prompt: str, content: str, client=get_openai_client()):
+    """Use OpenAI to extract subject-object relationships from text."""
+
+    base_prompt = (
+        prompt
+        + "\nYou must only output a valid python list of dictionaries with the keys"
+        + " 'subject', 'object', and 'relationship'."
+        + " Use short phrases from the text for the subject and object and a concise"
+        + " label for the relationship. Do not include any extra commentary.\n\n"
+        + "Content:\n"
+        + content
+        + "\n\nNow strictly output the python list:"
+    )
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": base_prompt}],
+        response_format={"type": "text"},
+        temperature=0.7,
+        max_completion_tokens=1500,
+        top_p=1,
+        frequency_penalty=0,
+        presence_penalty=0,
+        store=False,
+    )
+
+    raw = response.choices[0].message.content.strip()
+
+    if raw.startswith("```"):
+        raw = re.sub(r"^```(?:python)?\s*", "", raw)
+        raw = re.sub(r"\s*```$", "", raw)
+
+    match = re.search(r"\[.*\]", raw, re.DOTALL)
+    python_text = match.group(0) if match else raw
+
+    if python_text.count("[") != python_text.count("]"):
+        raise ValueError(f"Unbalanced JSON from model:\n{python_text}")
+
+    try:
+        pairs = json.loads(python_text)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Failed to parse JSON:\n{python_text}\n\nError: {e}")
+
+    return pairs

@@ -5,6 +5,7 @@ from handlers.openai_handler import (
     categorize_containers,
     get_relationships_from_openai,
     get_embeddings,
+    distill_subject_object_pairs,
 )
 from typing import List, Any
 from handlers.repository_handler import ContainerRepository
@@ -365,3 +366,36 @@ class ConceptContainer(Container):
             # source_container.add_container(target_container, relationship)
             position = {"label": relationship}
             source_container.setPosition(target_container, position)
+
+    @classmethod
+    def create_containers_from_content(cls, prompt: str, content: str):
+        """Create ConceptContainers from raw text content using OpenAI."""
+
+        pairs = distill_subject_object_pairs(prompt, content)
+        container_map: dict[str, ConceptContainer] = {}
+
+        for pair in pairs:
+            subject = str(pair.get("subject", "")).strip()
+            object_ = str(pair.get("object", "")).strip()
+            relationship = pair.get("relationship", "")
+
+            if not subject or not object_:
+                continue
+
+            subject_container = container_map.get(subject)
+            if subject_container is None:
+                subject_container = cls()
+                subject_container.setValue("Name", subject)
+                container_map[subject] = subject_container
+
+            object_container = container_map.get(object_)
+            if object_container is None:
+                object_container = cls()
+                object_container.setValue("Name", object_)
+                container_map[object_] = object_container
+
+            subject_container.add_container(
+                object_container, {"label": relationship}
+            )
+
+        return list(container_map.values())
