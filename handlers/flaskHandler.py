@@ -272,7 +272,60 @@ class FlaskServer(ServerHelperFunctions):
         return jsonify({"message": "Containers deleted successfully"})
 
     def create_containers_from_content(self):
-        """Create containers from raw text content using OpenAI."""
+        """
+        Create containers from raw text content using OpenAI.
+
+        **API Endpoint:** POST /create_containers_from_content
+
+        **Request Body (JSON):**
+        {
+            "prompt": "Optional prompt to guide container creation (string, optional)",
+            "content": "The raw text content to extract containers from (string, required)"
+        }
+
+        **Example Request:**
+        ```json
+        {
+            "prompt": "Extract project tasks and their relationships",
+            "content": "The yellow fox jumped over the red chicken. The fox was eating the blue rabbit."
+        }
+        ```
+
+        **Success Response (200):**
+        ```json
+        {
+            "message": "X containers created successfully",
+            "container_ids": ["uuid1", "uuid2", "uuid3"]
+        }
+        ```
+
+        **Error Responses:**
+        - 400: Missing or invalid data
+        ```json
+        {
+            "error": "No data provided" | "Content is required"
+        }
+        ```
+
+        - 500: Processing error
+        ```json
+        {
+            "error": "Failed to create containers: [error details]"
+        }
+        ```
+
+        **What it does:**
+        1. Extracts subject-object relationships from the provided text using OpenAI
+        2. Creates ConceptContainer instances for each unique subject/object
+        3. Establishes relationships between containers based on detected connections
+        4. Automatically assigns IDs and adds containers to the global instances list
+        5. Returns the IDs of all newly created containers
+
+        **Use cases:**
+        - Import project documentation and auto-generate task containers
+        - Parse meeting notes into actionable items and relationships
+        - Convert free-form text into structured container hierarchies
+        """
         data = request.get_json()
 
         # Validate required fields
