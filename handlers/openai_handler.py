@@ -2,6 +2,7 @@ from openai import OpenAI
 import markdown
 import os
 import json
+import ast
 from dotenv import load_dotenv
 import re
 
@@ -238,12 +239,17 @@ def get_relationships_from_openai(items: list[dict[str, str]]) -> dict[str, list
 
     # sanity‐check brace balance
     if python_text.count("[") != python_text.count("]"):
-        raise ValueError(f"Unbalanced JSON from model:\n{python_text}")
+        raise ValueError(f"Unbalanced brackets from model:\n{python_text}")
 
     try:
-        relationships_list = json.loads(python_text)
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Failed to parse JSON:\n{python_text}\n\nError: {e}")
+        # Use ast.literal_eval for Python-style syntax (single quotes)
+        relationships_list = ast.literal_eval(python_text)
+    except (ValueError, SyntaxError) as e:
+        # Fallback to json.loads in case it's actually JSON format
+        try:
+            relationships_list = json.loads(python_text)
+        except json.JSONDecodeError:
+            raise ValueError(f"Failed to parse Python list:\n{python_text}\n\nError: {e}")
 
     relationships_list = [
         {"source_id": rel["source_id"], "target_id": rel["target_id"], "relationship": rel["relationship"]}
@@ -289,11 +295,16 @@ def distill_subject_object_pairs(prompt: str, content: str, client=get_openai_cl
     python_text = match.group(0) if match else raw
 
     if python_text.count("[") != python_text.count("]"):
-        raise ValueError(f"Unbalanced JSON from model:\n{python_text}")
+        raise ValueError(f"Unbalanced brackets from model:\n{python_text}")
 
     try:
-        pairs = json.loads(python_text)
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Failed to parse JSON:\n{python_text}\n\nError: {e}")
+        # Use ast.literal_eval for Python-style syntax (single quotes)
+        pairs = ast.literal_eval(python_text)
+    except (ValueError, SyntaxError) as e:
+        # Fallback to json.loads in case it's actually JSON format
+        try:
+            pairs = json.loads(python_text)
+        except json.JSONDecodeError:
+            raise ValueError(f"Failed to parse Python list:\n{python_text}\n\nError: {e}")
 
     return pairs
