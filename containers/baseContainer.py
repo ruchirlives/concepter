@@ -382,16 +382,26 @@ class ConceptContainer(Container):
             if not subject or not object_:
                 continue
 
+            # Check for existing container with same name for subject
             subject_container = container_map.get(subject)
             if subject_container is None:
-                subject_container = cls()
-                subject_container.setValue("Name", subject)
+                # First check if container already exists in instances
+                subject_container = cls.get_instance_by_name(subject)
+                if subject_container is None:
+                    # Create new container if none exists
+                    subject_container = cls()
+                    subject_container.setValue("Name", subject)
                 container_map[subject] = subject_container
 
+            # Check for existing container with same name for object
             object_container = container_map.get(object_)
             if object_container is None:
-                object_container = cls()
-                object_container.setValue("Name", object_)
+                # First check if container already exists in instances
+                object_container = cls.get_instance_by_name(object_)
+                if object_container is None:
+                    # Create new container if none exists
+                    object_container = cls()
+                    object_container.setValue("Name", object_)
                 container_map[object_] = object_container
 
             subject_container.add_container(
