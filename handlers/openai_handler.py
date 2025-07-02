@@ -260,17 +260,18 @@ def get_relationships_from_openai(items: list[dict[str, str]]) -> dict[str, list
 
 
 def distill_subject_object_pairs(prompt: str, content: str, client=get_openai_client()):
-    """Use OpenAI to extract subject-object relationships from text."""
+    """Use OpenAI to extract subject-object relationships from text with contextual descriptions."""
 
     base_prompt = (
-        prompt
-        + "\nYou must only output a valid python list of dictionaries with the keys"
-        + " 'subject', 'object', and 'relationship'."
-        + " Use short phrases from the text for the subject and object and a concise"
-        + " label for the relationship. Do not include any extra commentary.\n\n"
-        + "Content:\n"
-        + content
-        + "\n\nNow strictly output the python list:"
+        f"{prompt}\n"
+        "You must only output a valid python list of dictionaries with the keys "
+        "'subject', 'object', 'relationship', 'subject_description', and 'object_description'. "
+        "Use short phrases from the text for the subject and object and a concise "
+        "label for the relationship. For subject_description and object_description, "
+        "provide 1-2 sentences of contextual information from the text that explains "
+        "or describes each subject and object in more detail. Do not include any extra commentary.\n\n"
+        f"Content:\n{content}\n\n"
+        "Now strictly output the python list:"
     )
 
     response = client.chat.completions.create(
@@ -307,4 +308,35 @@ def distill_subject_object_pairs(prompt: str, content: str, client=get_openai_cl
         except json.JSONDecodeError:
             raise ValueError(f"Failed to parse Python list:\n{python_text}\n\nError: {e}")
 
-    return pairs
+    # Validate that all required fields are present in each pair
+    required_fields = ["subject", "object", "relationship", "subject_description", "object_description"]
+    validated_pairs = []
+
+    for pair in pairs:
+        if not isinstance(pair, dict):
+            continue
+
+        # Check if all required fields are present
+        if all(field in pair for field in required_fields):
+            validated_pairs.append(
+                {
+                    "subject": pair["subject"],
+                    "object": pair["object"],
+                    "relationship": pair["relationship"],
+                    "subject_description": pair["subject_description"],
+                    "object_description": pair["object_description"],
+                }
+            )
+        else:
+            # If new fields are missing, add empty descriptions for backward compatibility
+            validated_pairs.append(
+                {
+                    "subject": pair.get("subject", ""),
+                    "object": pair.get("object", ""),
+                    "relationship": pair.get("relationship", ""),
+                    "subject_description": pair.get("subject_description", ""),
+                    "object_description": pair.get("object_description", ""),
+                }
+            )
+
+    return validated_pairs

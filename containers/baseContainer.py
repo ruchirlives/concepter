@@ -378,6 +378,8 @@ class ConceptContainer(Container):
             subject = str(pair.get("subject", "")).strip()
             object_ = str(pair.get("object", "")).strip()
             relationship = pair.get("relationship", "")
+            subject_description = str(pair.get("subject_description", "")).strip()
+            object_description = str(pair.get("object_description", "")).strip()
 
             if not subject or not object_:
                 continue
@@ -391,6 +393,9 @@ class ConceptContainer(Container):
                     # Create new container if none exists
                     subject_container = cls()
                     subject_container.setValue("Name", subject)
+                    # Set description for new containers only
+                    if subject_description:
+                        subject_container.setValue("Description", subject_description)
                 container_map[subject] = subject_container
 
             # Check for existing container with same name for object
@@ -402,6 +407,9 @@ class ConceptContainer(Container):
                     # Create new container if none exists
                     object_container = cls()
                     object_container.setValue("Name", object_)
+                    # Set description for new containers only
+                    if object_description:
+                        object_container.setValue("Description", object_description)
                 container_map[object_] = object_container
 
             subject_container.add_container(
