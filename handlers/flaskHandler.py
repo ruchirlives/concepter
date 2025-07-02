@@ -10,13 +10,13 @@ from handlers.mongodb_handler import delete_project
 import datetime
 
 # Import mixins
-from handlers.mixins.container_crud_mixin import ContainerCRUDMixin
-from handlers.mixins.container_relationship_mixin import ContainerRelationshipMixin
-from handlers.mixins.container_persistence_mixin import ContainerPersistenceMixin
-from handlers.mixins.container_ai_mixin import ContainerAIMixin
-from handlers.mixins.container_task_mixin import ContainerTaskMixin
-from handlers.mixins.container_export_mixin import ContainerExportMixin
-from handlers.mixins.static_files_mixin import StaticFilesMixin
+from handlers.flask_mixins.container_crud_mixin import ContainerCRUDMixin
+from handlers.flask_mixins.container_relationship_mixin import ContainerRelationshipMixin
+from handlers.flask_mixins.container_persistence_mixin import ContainerPersistenceMixin
+from handlers.flask_mixins.container_ai_mixin import ContainerAIMixin
+from handlers.flask_mixins.container_task_mixin import ContainerTaskMixin
+from handlers.flask_mixins.container_export_mixin import ContainerExportMixin
+from handlers.flask_mixins.static_files_mixin import StaticFilesMixin
 
 
 # FLASK SERVER =========================================================
