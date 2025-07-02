@@ -10,18 +10,13 @@ from handlers.openai_mixins.vector_similarity_mixin import VectorSimilarityMixin
 from handlers.openai_mixins.reasoning_chain_mixin import ReasoningChainMixin
 
 
-class ServerHelperFunctions(
-    ContainerSerializationMixin,
-    ContainerTagMixin,
-    VectorSimilarityMixin,
-    ReasoningChainMixin
-):
+class ServerHelperFunctions(ContainerSerializationMixin, ContainerTagMixin, VectorSimilarityMixin, ReasoningChainMixin):
     """
     Server helper functions using modular mixin architecture.
-    
+
     This class combines all helper functionality through mixins while maintaining
     backward compatibility with existing code.
     """
-    
+
     def __init__(self):
         super().__init__()

@@ -5,7 +5,7 @@ import re
 
 class RelationshipExtractionMixin:
     """Mixin for extracting relationships between entities using AI."""
-    
+
     def get_relationships_from_openai(self, items: list[dict[str, str]]) -> list[dict[str, str]]:
         """
         Given a list of dicts with 'id' and 'description', call OpenAI to
@@ -13,7 +13,7 @@ class RelationshipExtractionMixin:
         mapping each item id to a list of related item ids: {source_id, target_id, relationship}
         """
         client = self.get_openai_client()
-        
+
         prompt = (
             "You are a helpful assistant whose ONLY job is to output a valid python list.\n"
             'Given these items, each with an "id" and a "description":\n'
@@ -24,7 +24,7 @@ class RelationshipExtractionMixin:
             "  • Ensure all braces are balanced and fully closed.\n\n"
             "Items:\n"
         )
-        
+
         for item in items:
             prompt += f"- {item['id']}: {item['description']}\n"
         prompt += "\nNow strictly output the python list:"
@@ -40,7 +40,7 @@ class RelationshipExtractionMixin:
             presence_penalty=0,
             store=False,
         )
-        
+
         raw = response.choices[0].message.content.strip()
 
         # Remove any markdown fences from the python output
@@ -134,21 +134,25 @@ class RelationshipExtractionMixin:
 
             # Check if all required fields are present
             if all(field in pair for field in required_fields):
-                validated_pairs.append({
-                    "subject": pair["subject"],
-                    "object": pair["object"],
-                    "relationship": pair["relationship"],
-                    "subject_description": pair["subject_description"],
-                    "object_description": pair["object_description"],
-                })
+                validated_pairs.append(
+                    {
+                        "subject": pair["subject"],
+                        "object": pair["object"],
+                        "relationship": pair["relationship"],
+                        "subject_description": pair["subject_description"],
+                        "object_description": pair["object_description"],
+                    }
+                )
             else:
                 # If new fields are missing, add empty descriptions for backward compatibility
-                validated_pairs.append({
-                    "subject": pair.get("subject", ""),
-                    "object": pair.get("object", ""),
-                    "relationship": pair.get("relationship", ""),
-                    "subject_description": pair.get("subject_description", ""),
-                    "object_description": pair.get("object_description", ""),
-                })
+                validated_pairs.append(
+                    {
+                        "subject": pair.get("subject", ""),
+                        "object": pair.get("object", ""),
+                        "relationship": pair.get("relationship", ""),
+                        "subject_description": pair.get("subject_description", ""),
+                        "object_description": pair.get("object_description", ""),
+                    }
+                )
 
         return validated_pairs

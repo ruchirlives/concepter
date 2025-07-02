@@ -3,7 +3,7 @@ import numpy as np
 
 class VectorSimilarityMixin:
     """Mixin for vector similarity calculations."""
-    
+
     def vector_match(self, parent_z, child_z):
         """Calculate cosine similarity between two vectors."""
         # Ensure inputs are numpy arrays

@@ -1,6 +1,6 @@
 class ContentGenerationMixin:
     """Mixin for generating names, labels, and other content using AI."""
-    
+
     def generate_piece_name(self, descriptions):
         """Generate a concise label for given descriptions."""
         client = self.get_openai_client()
@@ -26,5 +26,5 @@ class ContentGenerationMixin:
             presence_penalty=0,
             store=False,
         )
-        
+
         return response.choices[0].message.content.strip()

@@ -4,7 +4,7 @@ import re
 
 class ContainerCategorizationMixin:
     """Mixin for categorizing and organizing containers using AI."""
-    
+
     def categorize_containers(self, items: list[dict[str, str]]) -> dict[str, list[str]]:
         """
         Given a list of dicts with 'name' and 'description', call OpenAI to
@@ -13,7 +13,7 @@ class ContainerCategorizationMixin:
         "Uncategorized" group.
         """
         client = self.get_openai_client()
-        
+
         prompt = (
             "You are a helpful assistant whose ONLY job is to output valid JSON.\n"
             'Given these items, each with a "name" and a "description":\n'
@@ -24,7 +24,7 @@ class ContainerCategorizationMixin:
             "  • Ensure all braces are balanced and fully closed.\n\n"
             "Items:\n"
         )
-        
+
         for item in items:
             prompt += f"- {item['name']}: {item['description']}\n"
         prompt += "\nNow strictly output the JSON object:"
@@ -40,7 +40,7 @@ class ContainerCategorizationMixin:
             presence_penalty=0,
             store=False,
         )
-        
+
         raw = response.choices[0].message.content.strip()
 
         # Remove any markdown fences

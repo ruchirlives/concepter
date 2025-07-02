@@ -3,7 +3,7 @@ import markdown
 
 class TextFormattingMixin:
     """Mixin for text formatting and processing operations."""
-    
+
     def format_text(self, text: str) -> str:
         """Format markdown text to HTML."""
         # format markdown to html using the markdown library

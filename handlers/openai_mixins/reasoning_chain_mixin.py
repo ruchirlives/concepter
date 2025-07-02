@@ -5,7 +5,7 @@ from handlers.openai_handler import generate_reasoning_argument, generate_relati
 
 class ReasoningChainMixin:
     """Mixin for building reasoning chains using beam search."""
-    
+
     def build_reasoning_chain_beam(self, selected_ids, start_id, end_id, max_jumps, beam_width=3):
         """Build a reasoning chain from start to end using beam search algorithm."""
         embeddings = {}
@@ -91,7 +91,7 @@ class ReasoningChainMixin:
             return sum(sims) / len(sims)
 
         best_chain = max(completed_chains, key=average_similarity)
-        
+
         # Create label and tag containers
         label = f"{start_container.getValue('Name')} to {end_container.getValue('Name')}"
         # Shorten label to 20 chars
