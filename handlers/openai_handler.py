@@ -5,7 +5,7 @@ This module provides a unified interface for all OpenAI-related operations
 using a mixin-based architecture for better organization and maintainability.
 """
 
-from handlers.openai_handler_modular import (
+from handlers.openai_mixins.openai_handler_modular import (
     get_openai_client,
     get_embeddings,
     format_text,

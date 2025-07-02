@@ -12,15 +12,15 @@ class OpenAIHandler(
     RelationshipGenerationMixin,
     ContentGenerationMixin,
     ContainerCategorizationMixin,
-    RelationshipExtractionMixin
+    RelationshipExtractionMixin,
 ):
     """
     Modular OpenAI handler that combines all AI functionality through mixins.
-    
+
     This class provides a unified interface for all OpenAI-related operations
     while keeping functionality separated into focused, testable mixins.
     """
-    
+
     def __init__(self):
         super().__init__()
 

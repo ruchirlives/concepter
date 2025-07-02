@@ -16,10 +16,10 @@ from handlers.flask_mixins.container_ai_mixin import ContainerAIMixin
 from handlers.flask_mixins.container_task_mixin import ContainerTaskMixin
 from handlers.flask_mixins.container_export_mixin import ContainerExportMixin
 from handlers.flask_mixins.static_files_mixin import StaticFilesMixin
-from handlers.mixins.container_serialization_mixin import ContainerSerializationMixin
-from handlers.mixins.container_tag_mixin import ContainerTagMixin
-from handlers.mixins.vector_similarity_mixin import VectorSimilarityMixin
-from handlers.mixins.reasoning_chain_mixin import ReasoningChainMixin
+from handlers.flask_mixins.container_serialization_mixin import ContainerSerializationMixin
+from handlers.openai_mixins.container_tag_mixin import ContainerTagMixin
+from handlers.openai_mixins.vector_similarity_mixin import VectorSimilarityMixin
+from handlers.openai_mixins.reasoning_chain_mixin import ReasoningChainMixin
 
 
 # FLASK SERVER =========================================================
