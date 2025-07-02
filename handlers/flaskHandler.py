@@ -5,7 +5,6 @@ from container_base import Container, baseTools
 from containers.projectContainer import ProjectContainer
 import logging
 from time import sleep
-from handlers.ServerHelperFunctions import ServerHelperFunctions
 from handlers.mongodb_handler import delete_project
 import datetime
 
@@ -17,18 +16,25 @@ from handlers.flask_mixins.container_ai_mixin import ContainerAIMixin
 from handlers.flask_mixins.container_task_mixin import ContainerTaskMixin
 from handlers.flask_mixins.container_export_mixin import ContainerExportMixin
 from handlers.flask_mixins.static_files_mixin import StaticFilesMixin
+from handlers.mixins.container_serialization_mixin import ContainerSerializationMixin
+from handlers.mixins.container_tag_mixin import ContainerTagMixin
+from handlers.mixins.vector_similarity_mixin import VectorSimilarityMixin
+from handlers.mixins.reasoning_chain_mixin import ReasoningChainMixin
 
 
 # FLASK SERVER =========================================================
 class FlaskServer(
-    ServerHelperFunctions,
     ContainerCRUDMixin,
     ContainerRelationshipMixin,
     ContainerPersistenceMixin,
     ContainerAIMixin,
     ContainerTaskMixin,
     ContainerExportMixin,
-    StaticFilesMixin
+    StaticFilesMixin,
+    ContainerSerializationMixin,
+    ContainerTagMixin,
+    VectorSimilarityMixin,
+    ReasoningChainMixin
 ):
     def __init__(self, container_class: Container, port=8080):
         self.app = Flask(__name__, static_folder="../react-build")
