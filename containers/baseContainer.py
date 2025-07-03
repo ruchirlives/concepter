@@ -105,7 +105,8 @@ class ConceptContainer(Container):
         # Get all containers that have a "task" tag
         task_containers = []
         for container in cls.instances:
-            if "task" in container.getValue("Tags"):
+            tags = [tag.strip() for tag in container.getValue("Tags", [])]
+            if "task" in tags:
                 task_containers.append(container)
         return task_containers
 
