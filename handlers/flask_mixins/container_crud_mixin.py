@@ -87,7 +87,7 @@ class ContainerCRUDMixin:
             for key, value in container.items():
                 if key == "StartDate" or key == "EndDate":
                     value = target_container.parse_date_auto(value)
-                elif key == "TimeRequired":
+                elif key in ("TimeRequired", "Impact", "Effort"):
                     if value:
                         value = float(value)
                 elif key == "Tags":

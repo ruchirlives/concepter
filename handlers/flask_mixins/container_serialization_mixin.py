@@ -38,6 +38,8 @@ class ContainerSerializationMixin:
 
             TimeRequired = container.getValue("TimeRequired")
             Horizon = container.getValue("Horizon")
+            Impact = container.getValue("Impact")
+            Effort = container.getValue("Effort")
             tags = container.getValue("Tags") or []
             tags = ",".join(tags)
 
@@ -51,6 +53,8 @@ class ContainerSerializationMixin:
                     "EndDate": EndDate,
                     "TimeRequired": TimeRequired,
                     "Horizon": Horizon,
+                    "Impact": Impact,
+                    "Effort": Effort,
                 }
             )
         return export
