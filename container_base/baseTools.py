@@ -145,6 +145,13 @@ class baseTools:
             positions.append((container, position))
         return positions
 
+    def getPosition(self, target):
+        # Get the position of the target container
+        for container, pos in self.containers:
+            if container == target:
+                return pos
+        return None
+
     def setPosition(self, target, position):
         # Set the position of the target container
         print(f"Setting position of {target.name} to {position}")
