@@ -1,6 +1,5 @@
 from flask import jsonify, request, send_file
-import logging
-
+from handlers.openai_mixins.openai_handler_modular import get_openai_client
 
 class ContainerAIMixin:
     """Mixin for AI-powered container operations."""
@@ -20,6 +19,35 @@ class ContainerAIMixin:
         self.app.add_url_rule("/add_similar", "add_similar", self.add_similar, methods=["POST"])
         self.app.add_url_rule("/build_relationships", "build_relationships", self.build_relationships, methods=["POST"])
         self.app.add_url_rule("/build_chain_beam", "build_chain_beam", self.build_chain_beam, methods=["POST"])
+        self.app.add_url_rule("/autocomplete", "autocomplete", self.autocomplete, methods=["POST"])
+
+    def autocomplete(self):
+        data = request.json
+        prompt = data.get('prompt', '')
+
+        if not prompt:
+            return jsonify({'suggestions': []})
+
+        try:
+            openai_client = get_openai_client()
+            if openai_client is None:
+                return jsonify({'error': 'OpenAI client not initialized'}), 500
+            # Use OpenAI's chat completion to generate suggestions
+            response = openai_client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": f"Complete the following text:\n\n{prompt}"}],
+                max_tokens=20,
+                temperature=0.7,
+                n=1,
+                stop=["\n"]
+            )
+            text = response.choices[0].message.content.strip()
+            suggestions = [line for line in text.split('\n') if line]
+            return jsonify({'suggestions': suggestions})
+
+        except Exception as e:
+            print(f"OpenAI API error: {e}")
+        return jsonify({'suggestions': []}), 500
 
     def create_containers_from_content(self):
         """Create containers from raw text content using OpenAI."""
