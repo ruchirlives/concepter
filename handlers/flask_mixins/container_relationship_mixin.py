@@ -13,9 +13,7 @@ class ContainerRelationshipMixin:
         self.app.add_url_rule("/add_children", "add_children", self.add_children, methods=["POST"])
         self.app.add_url_rule("/remove_children", "remove_children", self.remove_children, methods=["POST"])
         self.app.add_url_rule("/merge_containers", "merge_containers", self.merge_containers, methods=["POST"])
-        self.app.add_url_rule(
-            "/get_positions/<sourceId>/<targetId>", "get_positions", self.get_positions, methods=["GET"]
-        )
+        self.app.add_url_rule("/get_position/<sourceId>/<targetId>", "get_position", self.get_position, methods=["GET"])
         self.app.add_url_rule("/set_position", "set_position", self.set_position, methods=["POST"])
         self.app.add_url_rule(
             "/get_subcontainers/<url_encoded_container_name>",
@@ -111,26 +109,21 @@ class ContainerRelationshipMixin:
         else:
             return jsonify({"message": "No containers to merge"})
 
-    def get_positions(self, sourceId, targetId):
+    def get_position(self, sourceId, targetId):
         """Return relationship positions between two containers."""
         source = self.container_class.get_instance_by_id(sourceId)
         target = self.container_class.get_instance_by_id(targetId)
 
         if source and target:
-            positions = source.getPositions()
-            relationshipString = ""
+            position = source.getPosition(target)
 
-            for container, position in positions:
-                if container is target:
-                    if position is None:
-                        continue
-                    if isinstance(position, dict):
-                        label = position.get("label", [])
-                    elif isinstance(position, str):
-                        label = position
-                    relationshipString += label + "\n"
+            if isinstance(position, dict):
+                position_dict = position
 
-            return jsonify({"relationshipString": relationshipString})
+            else:
+                position_dict = {"label": position}
+
+            return jsonify(position_dict)
         else:
             return jsonify({"message": "Container not found"}), 404
 
@@ -139,7 +132,17 @@ class ContainerRelationshipMixin:
         data = request.get_json()
         source = self.container_class.get_instance_by_id(data["source_id"])
         target = self.container_class.get_instance_by_id(data["target_id"])
-        position = {"label": data["relationship_string"]}
+
+        # First get the existing position if it exists
+        existing_position = source.getPosition(target)
+        if existing_position is not None:
+            # If the position already exists, we can update it
+            position = existing_position
+        else:
+            # If no existing position, create a new one
+            position = {}
+        # Update the position with new data while preserving existing keys
+        position.update(data.get("position", {}))
 
         if source and target:
             source.setPosition(target, position)
