@@ -32,14 +32,40 @@ class ContainerAIMixin:
             openai_client = get_openai_client()
             if openai_client is None:
                 return jsonify({'error': 'OpenAI client not initialized'}), 500
+
+            # Build context from existing containers and their relationships
+            context_lines = []
+            for container in self.container_class.instances:
+                for child, relation in container.containers:
+                    label = ""
+                    if isinstance(relation, dict):
+                        label = relation.get("label", "")
+                    elif isinstance(relation, str):
+                        label = relation
+                    context_lines.append(
+                        f"{container.getValue('Name')} -[{label}]-> {child.getValue('Name')}"
+                    )
+                    if len(context_lines) >= 20:
+                        break
+                if len(context_lines) >= 20:
+                    break
+
+            if context_lines:
+                context = "\n".join(context_lines)
+                user_msg = (
+                    f"Context:\n{context}\n\nComplete the following text:\n\n{prompt}"
+                )
+            else:
+                user_msg = f"Complete the following text:\n\n{prompt}"
+
             # Use OpenAI's chat completion to generate suggestions
             response = openai_client.chat.completions.create(
                 model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": f"Complete the following text:\n\n{prompt}"}],
+                messages=[{"role": "user", "content": user_msg}],
                 max_tokens=20,
                 temperature=0.7,
                 n=1,
-                stop=["\n"]
+                stop=["\n"],
             )
             text = response.choices[0].message.content.strip()
             suggestions = [line for line in text.split('\n') if line]
