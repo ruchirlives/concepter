@@ -178,23 +178,6 @@ class baseTools:
 
         return new_container
 
-    def duplicate_container(self):
-        """
-        Creates a deep copy of the container instance, including its subcontainers.
-        :return: A new instance of the container with copied attributes and subcontainers.
-        """
-        new_container = self.clone_single_container()
-
-        new_container.stream = copy.deepcopy(self.stream)
-
-        # Deepcopy the takes array
-        new_container.takes = copy.deepcopy(self.takes)
-
-        name = f"{self.getValue('Name')} (Copy)"
-        new_container.setValue("Name", name)
-
-        return new_container
-
     def clone_single_container(self):
         """
         Creates a shallow copy of the container instance.
