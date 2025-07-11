@@ -12,7 +12,7 @@ class ContainerCRUDMixin:
         self.app.add_url_rule("/create_container", "create_container", self.create_container, methods=["GET"])
         self.app.add_url_rule("/rename_container/<id>", "rename_container", self.rename_container, methods=["GET"])
         self.app.add_url_rule("/delete_containers", "delete_containers", self.delete_containers, methods=["POST"])
-        self.app.add_url_rule("/join_containers", "join_containers", self.join_containers, methods=["GET"])
+        self.app.add_url_rule("/join_containers", "join_containers", self.join_containers, methods=["POST"])
         self.app.add_url_rule("/clear_containers", "clear_containers", self.clear_containers, methods=["GET"])
         self.app.add_url_rule(
             "/write_back_containers", "write_back_containers", self.write_back_containers, methods=["POST"]
