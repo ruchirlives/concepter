@@ -12,6 +12,7 @@ class ContainerCRUDMixin:
         self.app.add_url_rule("/create_container", "create_container", self.create_container, methods=["GET"])
         self.app.add_url_rule("/rename_container/<id>", "rename_container", self.rename_container, methods=["GET"])
         self.app.add_url_rule("/delete_containers", "delete_containers", self.delete_containers, methods=["POST"])
+        self.app.add_url_rule("/join_containers", "join_containers", self.join_containers, methods=["GET"])
         self.app.add_url_rule("/clear_containers", "clear_containers", self.clear_containers, methods=["GET"])
         self.app.add_url_rule(
             "/write_back_containers", "write_back_containers", self.write_back_containers, methods=["POST"]
@@ -65,6 +66,28 @@ class ContainerCRUDMixin:
 
         baseTools.instances = []
         return jsonify({"message": "Containers cleared successfully"})
+
+    def join_containers(self):
+        """Join multiple containers into one."""
+        from containers.baseContainer import ConceptContainer
+        data = request.get_json()
+        container_ids = data.get("containers", [])
+        if not container_ids:
+            return jsonify({"message": "No container IDs provided"}), 400
+        # Resolve to actual container objects
+        containers = []
+        for cid in container_ids:
+            inst = self.container_class.get_instance_by_id(cid)
+            if inst:
+                containers.append(inst)
+        if not containers:
+            return jsonify({"message": "None of the provided IDs matched existing containers"}), 404
+
+        # Create a new container to hold the joined content
+        joined_container = ConceptContainer.join_containers(containers)
+        return jsonify(
+            {"message": "Containers joined successfully", "new_container_id": joined_container.getValue("id")}
+        )
 
     def write_back_containers(self):
         """Update container properties from client data."""

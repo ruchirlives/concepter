@@ -294,6 +294,76 @@ class ConceptContainer(Container):
         return merged_container
 
     @classmethod
+    def join_containers(cls, containers):
+        """
+        Join multiple containers into a single container.
+        """
+        if not containers:
+            return None
+
+        # Create a new container to hold the joined content
+        joined_container = cls()
+        name = ""
+        description = ""
+        sub_containers = []
+        values = {}
+
+        for container in containers:
+            name += container.getValue("Name") + ", "
+            description += container.getValue("Description") + "\n\n"
+            sub_containers.extend(container.containers)
+
+            # Merge values from the containers
+            for key, value in container.values.items():
+                if key in values:
+                    # merge the value
+                    if isinstance(values[key], list) and isinstance(value, list):
+                        values[key].extend(value)
+                    elif isinstance(values[key], str) and isinstance(value, str):
+                        values[key] += ", " + value
+                else:
+                    values[key] = value
+
+            # Add parents
+            for parent in container.getParents():
+                if parent not in joined_container.getParents():
+                    joined_container.add_parent(parent, container)
+
+            # Add children
+            for subcontainer, relationship in container.containers:
+                if subcontainer not in joined_container.containers:
+                    joined_container.add_container(subcontainer, relationship)
+
+        # Set the name and description for the joined container
+        joined_container.setValue("Name", name.strip(", "))
+        joined_container.setValue("Description", description.strip())
+
+        # Set the values for the joined container
+        for key, value in values.items():
+            joined_container.setValue(key, value)
+
+        # Remove the now joined containers
+        for container in containers:
+            if container in joined_container.instances:
+                joined_container.instances.remove(container)
+
+        return joined_container
+
+    def add_parent(self, parent, sibling):
+        """
+        Add a parent to this container, ensuring no duplicates.
+        """
+        if parent not in self.getParents():
+            # Find the position of the sibling in the parent's containers
+            for subcontainer, pos in parent.containers:
+                if subcontainer == sibling:
+                    position = pos
+                    break
+
+            # Add the parent with the sibling's position
+            parent.containers.append((self, position))
+
+    @classmethod
     def categorise_containers(cls, containers):
         """
         Create new category containers for each theme returned by OpenAI,
@@ -413,8 +483,6 @@ class ConceptContainer(Container):
                         object_container.setValue("Description", object_description)
                 container_map[object_] = object_container
 
-            subject_container.add_container(
-                object_container, {"label": relationship}
-            )
+            subject_container.add_container(object_container, {"label": relationship})
 
         return list(container_map.values())
