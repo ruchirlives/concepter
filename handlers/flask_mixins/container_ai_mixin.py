@@ -1,5 +1,6 @@
 from flask import jsonify, request, send_file
-from handlers.openai_mixins.openai_handler_modular import get_openai_client
+from handlers.openai_handler import openai_handler
+
 
 class ContainerAIMixin:
     """Mixin for AI-powered container operations."""
@@ -18,20 +19,23 @@ class ContainerAIMixin:
         self.app.add_url_rule("/embed_containers", "embed_containers", self.embed_containers, methods=["POST"])
         self.app.add_url_rule("/add_similar", "add_similar", self.add_similar, methods=["POST"])
         self.app.add_url_rule("/build_relationships", "build_relationships", self.build_relationships, methods=["POST"])
+        self.app.add_url_rule(
+            "/suggest_relationship", "suggest_relationship", self.suggest_relationship, methods=["POST"]
+        )
         self.app.add_url_rule("/build_chain_beam", "build_chain_beam", self.build_chain_beam, methods=["POST"])
         self.app.add_url_rule("/autocomplete", "autocomplete", self.autocomplete, methods=["POST"])
 
     def autocomplete(self):
         data = request.json
-        prompt = data.get('prompt', '')
+        prompt = data.get("prompt", "")
 
         if not prompt:
-            return jsonify({'suggestions': []})
+            return jsonify({"suggestions": []})
 
         try:
-            openai_client = get_openai_client()
+            openai_client = openai_handler.get_openai_client()
             if openai_client is None:
-                return jsonify({'error': 'OpenAI client not initialized'}), 500
+                return jsonify({"error": "OpenAI client not initialized"}), 500
 
             # Build context from existing containers and their relationships
             context_lines = []
@@ -42,9 +46,7 @@ class ContainerAIMixin:
                         label = relation.get("label", "")
                     elif isinstance(relation, str):
                         label = relation
-                    context_lines.append(
-                        f"{container.getValue('Name')} -[{label}]-> {child.getValue('Name')}"
-                    )
+                    context_lines.append(f"{container.getValue('Name')} -[{label}]-> {child.getValue('Name')}")
                     if len(context_lines) >= 20:
                         break
                 if len(context_lines) >= 20:
@@ -52,9 +54,7 @@ class ContainerAIMixin:
 
             if context_lines:
                 context = "\n".join(context_lines)
-                user_msg = (
-                    f"Context:\n{context}\n\nComplete the following text:\n\n{prompt}"
-                )
+                user_msg = f"Context:\n{context}\n\nComplete the following text:\n\n{prompt}"
             else:
                 user_msg = f"Complete the following text:\n\n{prompt}"
 
@@ -68,12 +68,12 @@ class ContainerAIMixin:
                 stop=["\n"],
             )
             text = response.choices[0].message.content.strip()
-            suggestions = [line for line in text.split('\n') if line]
-            return jsonify({'suggestions': suggestions})
+            suggestions = [line for line in text.split("\n") if line]
+            return jsonify({"suggestions": suggestions})
 
         except Exception as e:
             print(f"OpenAI API error: {e}")
-        return jsonify({'suggestions': []}), 500
+        return jsonify({"suggestions": []}), 500
 
     def create_containers_from_content(self):
         """Create containers from raw text content using OpenAI."""
@@ -195,6 +195,30 @@ class ContainerAIMixin:
                 self.add_child_with_tags(container, child)
 
         return jsonify({"message": f"Top 5 scoring of {counter} similar containers added successfully"})
+
+    def suggest_relationship(self):
+        """Suggest a relationship between two containers using OpenAI."""
+        data = request.get_json()
+        source_id = data.get("source_id")
+        target_id = data.get("target_id")
+
+        if not source_id or not target_id:
+            return jsonify({"error": "Both subject and object IDs must be provided"}), 400
+
+        subject_container = self.container_class.get_instance_by_id(source_id)
+        object_container = self.container_class.get_instance_by_id(target_id)
+
+        if not subject_container or not object_container:
+            return jsonify({"error": "Invalid subject or object ID"}), 404
+
+        try:
+            relationship_description = self.container_class.suggest_relationship(
+                subject_container, object_container
+            )
+            return jsonify({"relationship": relationship_description})
+
+        except Exception as e:
+            return jsonify({"error": f"Failed to suggest relationship: {str(e)}"}), 500
 
     def build_relationships(self):
         """Build relationships between containers using AI."""

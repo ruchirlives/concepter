@@ -71,7 +71,7 @@ class ContainerRelationshipMixin:
         parent_id = data["parent_id"]
         container = self.container_class.get_instance_by_id(parent_id)
 
-        print(container.name)
+        print(container.getValue("Name"))
         print("Parent ID: " + str(parent_id))
         print("Children IDs: " + str(children_ids))
 

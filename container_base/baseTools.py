@@ -56,22 +56,22 @@ class baseTools:
 
         return f"{random.choice(adjectives)} {random.choice(nouns)}"
 
-    @property
-    def name(self):
-        return self.getValue("Name")
+    # @property
+    # def name(self):
+    #     return self.getValue("Name")
 
-    @name.setter
-    def name(self, value):
-        self.setValue("Name", value)
+    # @name.setter
+    # def name(self, value):
+    #     self.setValue("Name", value)
 
-    @property
-    def description(self):
-        return self.getValue("Description")
+    # @property
+    # def description(self):
+    #     return self.getValue("Description")
 
     @classmethod
     def get_instance_by_name(cls, name):
         for instance in cls.instances:
-            if instance.name == name:
+            if instance.getValue("Name") == name:
                 return instance
         return None
 
@@ -97,14 +97,14 @@ class baseTools:
     def get_container(cls, container_name):
         for container in cls.instances:
             # find any case match inside the container name
-            if container_name.lower() in container.name.lower():
+            if container_name.lower() in container.getValue("Name").lower():
                 return container
         return None
 
     def delete(self):
         # Remove the container from the list of containers
         self.remove_container_everywhere(self)
-        print(f"Deleted container: {self.name}")
+        print(f"Deleted container: {self.getValue("Name")}")
 
     @classmethod
     def remove_container_everywhere(cls, container_obj):
@@ -154,7 +154,7 @@ class baseTools:
 
     def setPosition(self, target, position):
         # Set the position of the target container
-        print(f"Setting position of {target.name} to {position}")
+        print(f"Setting position of {target.getValue("Name")} to {position}")
         for i, (container, pos) in enumerate(self.containers):
             if container == target:
                 self.containers[i] = (container, position)

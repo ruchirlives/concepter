@@ -1,6 +1,6 @@
 from container_base import Container
 from containers.projectContainer import ConceptContainer
-from handlers.openai_handler import generate_reasoning_argument, generate_relationship_description
+from handlers.openai_handler import openai_handler
 
 
 class ReasoningChainMixin:
@@ -29,7 +29,7 @@ class ReasoningChainMixin:
             container = Container.get_instance_by_id(node_id)
             if container:
                 embeddings[node_id] = container.getValue("z")
-                names[node_id] = container.name
+                names[node_id] = container.getValue("Name")
             else:
                 raise ValueError(f"Container with ID {node_id} not found.")
 
@@ -110,7 +110,7 @@ class ReasoningChainMixin:
             subject = source_container.getValue("Description") or source_container.getValue("Name")
             object = target_container.getValue("Description") or target_container.getValue("Name")
 
-            description = generate_relationship_description(subject=subject, object=object)
+            description = openai_handler.generate_relationship_description(subject=subject, object=object)
             source_container.setPosition(target_container, {"label": [label], "description": description})
             target_container.append_tags([label])
 
@@ -118,5 +118,5 @@ class ReasoningChainMixin:
             narrative += f"\n\n{subject} -> {object}: {description}"
 
         # Generate final argument
-        argument = generate_reasoning_argument(reasoning=narrative)
+        argument = openai_handler.generate_reasoning_argument(reasoning=narrative)
         return argument

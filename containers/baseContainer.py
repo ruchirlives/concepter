@@ -1,12 +1,6 @@
 from helpers.random_names import random_names
 from container_base import Container, baseTools
-from handlers.openai_handler import (
-    generate_piece_name,
-    categorize_containers,
-    get_relationships_from_openai,
-    get_embeddings,
-    distill_subject_object_pairs,
-)
+from handlers.openai_handler import openai_handler
 from typing import List, Any
 from handlers.repository_handler import ContainerRepository
 
@@ -112,14 +106,10 @@ class ConceptContainer(Container):
 
     @classmethod
     def embed_containers(cls, containers):
-        # use openai get_embeddings to created embeddings in z variable
-
+        # use openai_handler.get_embeddings to create embeddings in z variable
         for container in containers:
-            # Get the description of the container
             description = container.getValue("Description") or container.getValue("Name")
-            # Get the embedding for the description
-            z = get_embeddings(description)
-            # Set the embedding in the container
+            z = openai_handler.get_embeddings(description)
             container.setValue("z", z)
 
     def export_mermaid(self, *args):
@@ -127,7 +117,7 @@ class ConceptContainer(Container):
 
         exporter = MermaidExporter()
         exporter.set_diagram_type("td")
-        exporter.add_node(self.getValue("id") or self.assign_id(), self.name)
+        exporter.add_node(self.getValue("id") or self.assign_id(), self.getValue("Name"))
 
         def add_container_to_mermaid(container, current_depth=0, depth_limit=2):
             if current_depth > depth_limit:
@@ -137,7 +127,7 @@ class ConceptContainer(Container):
             for subcontainer, relationship in container.containers:
                 # If has id use it, else use the .assign_id()
                 subcontainer_id = subcontainer.getValue("id") or subcontainer.assign_id()
-                exporter.add_node(subcontainer_id, subcontainer.name)
+                exporter.add_node(subcontainer_id, subcontainer.getValue("Name"))
                 try:
                     if relationship is not None:
                         # If relationship is a dict, use its description or label
@@ -246,14 +236,10 @@ class ConceptContainer(Container):
         return html.get_doc()
 
     def rename_from_description(self):
-        # Get the description of the container
         description = self.getValue("Description")
-        # Generate a name based on the description
         if not description or description == "":
             return self.getValue("Name")
-
-        name = generate_piece_name(description)
-        # Set the name of the container to the generated name
+        name = openai_handler.generate_piece_name(description)
         self.setValue("Name", name)
         return name
 
@@ -285,7 +271,7 @@ class ConceptContainer(Container):
             description += container.getValue("Name") + " (" + str(container.getValue("Description")) + ")"
 
         # Set the name of the merged container to the concatenated names
-        piece_name = generate_piece_name(description)
+        piece_name = openai_handler.generate_piece_name(description)
         merged_container.setValue("Name", piece_name)
         merged_container.setValue("Description", "Brings together " + str(len(containers)) + " priorities.")
         # Set the tags for the merged container
@@ -370,24 +356,18 @@ class ConceptContainer(Container):
         attaching relevant existing containers as children. Returns list of
         the new category containers.
         """
-        # Prepare items for OpenAI
         items = [{"name": c.getValue("Name"), "description": c.getValue("Description") or ""} for c in containers]
-
-        # Ask OpenAI to produce category → [item names]
-        categories_map = categorize_containers(items)
-
+        categories_map = openai_handler.categorize_containers(items)
         new_categories: list[ConceptContainer] = []
         for category_name, item_names in categories_map.items():
             category_container = cls()
             category_container.setValue("Name", category_name)
             category_container.setValue("Description", "")
             cls.instances.append(category_container)
-            # Link children by matching names
             for cont in containers:
-                if cont.name in item_names:
+                if cont.getValue("Name") in item_names:
                     category_container.add_container(cont, "includes")
             new_categories.append(category_container)
-
         return new_categories
 
     def append_tags(self, tags):
@@ -399,6 +379,30 @@ class ConceptContainer(Container):
                 existing_tags.append(tag)
         container.setValue("Tags", existing_tags)
 
+    def _build_description(self, container=None):
+
+        if container is None:
+            container = self
+
+        # Get the description of the container
+        description = container.getValue("Description")
+        name = container.getValue("Name")
+        if not description:
+            return name
+        elif description == name:
+            return name
+        return f"{name} - {description}"
+
+    def suggest_relationship(self, target_container):
+        """
+        Suggest a relationship between this container and the target container.
+        Uses OpenAI to generate a relationship description.
+        """
+        source_description = self._build_description()
+        target_description = self._build_description(target_container)
+        relationship = openai_handler.suggest_relationship_from_openai(source_description, target_description)
+        self.setPosition(target_container, {"label": relationship, "description": relationship})
+
     @classmethod
     def build_relationships(cls, containers):
         """
@@ -406,83 +410,56 @@ class ConceptContainer(Container):
         """
         relationships = []
         for container in containers:
-            # Get the description of the container
-            description = container.getValue("Description") or container.getValue("Name")
-
-            # Build a key, value object with the container id and its description
+            description = cls._build_description(container)
             container_id = container.getValue("id") or container.assign_id()
             container_description = {
                 "id": container_id,
                 "description": description,
             }
             relationships.append(container_description)
-
-        # Get a list of relationships from OpenAI
-        relationships = get_relationships_from_openai(relationships)
-        # Iterate over the relationships and add them to the containers
+        relationships = openai_handler.get_relationships_from_openai(relationships)
         for relationship in relationships:
-            # Get the container id and its description
             source_id = relationship["source_id"]
             target_id = relationship["target_id"]
-            relationship = relationship["relationship"]
-
-            # Get the container by id
+            rel_text = relationship["relationship"]
             source_container: Container = cls.get_instance_by_id(source_id)
             target_container = cls.get_instance_by_id(target_id)
-            if not container:
-                print(f"Container with ID {container_id} not found.")
+            if not source_container or not target_container:
+                print(f"Container with ID {source_id} or {target_id} not found.")
                 continue
-
-            # Add the relationship to the container
-            # source_container.add_container(target_container, relationship)
-            position = {"label": relationship}
+            position = {"label": rel_text}
             source_container.setPosition(target_container, position)
 
     @classmethod
     def create_containers_from_content(cls, prompt: str, content: str):
         """Create ConceptContainers from raw text content using OpenAI."""
-
-        pairs = distill_subject_object_pairs(prompt, content)
+        pairs = openai_handler.distill_subject_object_pairs(prompt, content)
         container_map: dict[str, ConceptContainer] = {}
-
         for pair in pairs:
             subject = str(pair.get("subject", "")).strip()
             object_ = str(pair.get("object", "")).strip()
             relationship = pair.get("relationship", "")
             subject_description = str(pair.get("subject_description", "")).strip()
             object_description = str(pair.get("object_description", "")).strip()
-
             if not subject or not object_:
                 continue
-
-            # Check for existing container with same name for subject
             subject_container = container_map.get(subject)
             if subject_container is None:
-                # First check if container already exists in instances
                 subject_container = cls.get_instance_by_name(subject)
                 if subject_container is None:
-                    # Create new container if none exists
                     subject_container = cls()
                     subject_container.setValue("Name", subject)
-                    # Set description for new containers only
                     if subject_description:
                         subject_container.setValue("Description", subject_description)
                 container_map[subject] = subject_container
-
-            # Check for existing container with same name for object
             object_container = container_map.get(object_)
             if object_container is None:
-                # First check if container already exists in instances
                 object_container = cls.get_instance_by_name(object_)
                 if object_container is None:
-                    # Create new container if none exists
                     object_container = cls()
                     object_container.setValue("Name", object_)
-                    # Set description for new containers only
                     if object_description:
                         object_container.setValue("Description", object_description)
                 container_map[object_] = object_container
-
             subject_container.add_container(object_container, {"label": relationship})
-
         return list(container_map.values())
