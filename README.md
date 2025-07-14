@@ -3,7 +3,6 @@
 This guide provides setup instructions to deploy the Concepter Web application via Docker.
 * Copyright (c) 2025 Ruchir Shah
 * Licensed under the GNU GPLv3. See [LICENSE](./LICENSE) file for details.
-* For details on included open-source components, see the [NOTICE](./NOTICE) file.
 
 ---
 
@@ -52,7 +51,6 @@ ConcepterWeb/
 ├── containers/          # Real folders, previously junctions
 ├── handlers/
 ├── helpers/
-├── react-build/         # Built React frontend (optional)
 └── .env
 ```
 
@@ -103,13 +101,6 @@ If deployed to Google Cloud Run:
 ```bash
 gcloud logs read --project=YOUR_PROJECT_ID
 ```
-
----
-
-## ✨ Tips
-
-* Keep `react-build` up to date by running `yarn build` or `npm run build` from your React project
-* Recreate junctions with `mklink /J` if needed after cloning
 
 ---
 
