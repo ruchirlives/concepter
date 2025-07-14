@@ -65,7 +65,7 @@ class baseTools:
     #     self.setValue("Name", value)
 
     # @property
-    # def description(self):
+    # def Description(self):
     #     return self.getValue("Description")
 
     @classmethod
