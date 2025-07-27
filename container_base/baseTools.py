@@ -218,6 +218,24 @@ class baseTools:
         if len(ids) != len(set(ids)):
             print("Warning: Duplicate IDs found after rekeying.")
 
+    # deduplicate_all
+    @classmethod
+    def deduplicate_all(cls):
+        """
+        Deduplicate all containers by removing duplicates based on their IDs.
+        """
+        seen_ids = set()
+        unique_containers = []
+
+        for container in cls.instances:
+            container_id = container.getValue("id")
+            if container_id not in seen_ids:
+                seen_ids.add(container_id)
+                unique_containers.append(container)
+
+        cls.instances = unique_containers
+        print(f"Deduplication complete. {len(cls.instances)} unique containers remain.")
+
     @classmethod
     def get_all_containers(cls):
         all_containers = set()

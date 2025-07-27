@@ -9,6 +9,8 @@ class ContainerTaskMixin:
         """Setup routes for task operations."""
         self.app.add_url_rule("/get_task_containers", "get_task_containers", self.get_task_containers, methods=["GET"])
         self.app.add_url_rule("/request_rekey", "request_rekey", self.request_rekey, methods=["GET"])
+        # request_dedup
+        self.app.add_url_rule("/request_dedup", "request_dedup", self.request_dedup, methods=["GET"])
 
     def get_task_containers(self):
         """Get containers tagged with task."""
@@ -55,3 +57,8 @@ class ContainerTaskMixin:
         """Request a rekey of the containers."""
         self.container_class.rekey_all_ids()
         return jsonify({"message": "Rekey requested successfully"})
+
+    def request_dedup(self):
+        """Request deduplication of containers."""
+        self.container_class.deduplicate_all()
+        return jsonify({"message": "Deduplication requested successfully"})
