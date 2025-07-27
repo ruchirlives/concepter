@@ -60,5 +60,6 @@ class ContainerTaskMixin:
 
     def request_dedup(self):
         """Request deduplication of containers."""
-        self.container_class.deduplicate_all()
+        from container_base import baseTools
+        baseTools.deduplicate_all()
         return jsonify({"message": "Deduplication requested successfully"})
