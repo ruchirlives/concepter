@@ -137,7 +137,11 @@ class ContainerRelationshipMixin:
         existing_position = source.getPosition(target)
         if existing_position is not None:
             # If the position already exists, we can update it
-            position = existing_position
+            if isinstance(existing_position, dict):
+                position = existing_position
+            else:
+                # Convert existing position to a dict if it's not already
+                position = {"label": existing_position}
         else:
             # If no existing position, create a new one
             position = {}

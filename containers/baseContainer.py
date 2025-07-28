@@ -259,7 +259,7 @@ class ConceptContainer(Container):
                 print(f"Container with ID {containerId} not found.")
                 continue
             # Add each container to the merged container
-            merged_container.add_container(container, "contains")
+            merged_container.add_container(container, {})
             # Concatenate names for the merged container
             if name:
                 name += ", "
