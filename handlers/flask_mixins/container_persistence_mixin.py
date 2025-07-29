@@ -54,7 +54,7 @@ class ContainerPersistenceMixin:
 
         if containers:
             project_name = f'Export {containers[0].getValue("Name")} et al.'
-            self.container_class.export_containers(containers, project_name)
+            self.container_class.export_containers(project_name, containers)
             return jsonify({"message": "Containers exported successfully"})
         else:
             return jsonify({"message": "No containers to export"})
