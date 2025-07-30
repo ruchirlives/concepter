@@ -102,7 +102,7 @@ class ContainerRelationshipMixin:
         container = self.container_class.merge_containers(containerIds)
 
         if container:
-            self.container_class.instances.append(container)
+            # self.container_class.instances.append(container)
             id = container.assign_id()
             container.setValue("id", id)
             return jsonify({"message": "Containers merged successfully", "id": id})

@@ -274,9 +274,21 @@ class ConceptContainer(Container):
         piece_name = openai_handler.generate_piece_name(description)
         merged_container.setValue("Name", piece_name)
         merged_container.setValue("Description", "Brings together " + str(len(containers)) + " priorities.")
-        # Set the tags for the merged container
-        # merged_container.setValue("Tags", ["group"])
 
+        # Set the tags for the merged container, by adding all the common tags from the merged containers.
+        # tags must be in all containers
+        tags = set()
+        for containerId in containers:
+            container = cls.get_instance_by_id(containerId)
+            if not container:
+                continue
+            container_tags = set(container.getValue("Tags", []))
+            if not tags:
+                tags = container_tags
+            else:
+                tags.intersection_update(container_tags)
+
+        merged_container.setValue("Tags", list(tags))
         return merged_container
 
     @classmethod
