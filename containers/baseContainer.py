@@ -3,20 +3,17 @@ from container_base import Container, baseTools
 from handlers.openai_handler import openai_handler
 from typing import List, Any
 from handlers.repository_handler import ContainerRepository
-
-# from tkinter import simpledialog
-import bson
-import pickle
+from containers.stateTools import StateTools
 
 
-class ConceptContainer(Container):
+class ConceptContainer(Container, StateTools):
     # Class‐level repository reference (set during app startup)
     repository: ContainerRepository | None = None  # type: ignore
 
     # Class variables
     random_names = random_names
     class_values = Container.class_values.copy()
-    class_values.update({"Horizon": None, "Tags": [], "z": None})
+    class_values.update({"Horizon": None, "Tags": [], "z": None, "allStates": {}, "activeState": "base"})
 
     custom_values = {
         "Description": [],
