@@ -1,8 +1,7 @@
 import copy
-from containers.baseContainer import Container
 
 
-class StateTools(Container):
+class StateTools():
     """
     Each state entry stores the .containers value against the its named key.
     """
@@ -35,6 +34,15 @@ class StateTools(Container):
         # Set the new active state
         self.values["activeState"] = newState
 
+    @classmethod
+    def switch_state_all(cls, newState: str):
+        """
+        Switch state for all container instances.
+        """
+        for instance in cls.instances:
+            if hasattr(instance, 'switch_state'):
+                instance.switch_state(newState)
+
     def remove_state(self, stateName: str):
         """
         Remove a state by its name.
@@ -43,6 +51,15 @@ class StateTools(Container):
             if stateName in self.values["allStates"]:
                 del self.values["allStates"][stateName]
 
+    @classmethod
+    def remove_state_all(cls, stateName: str):
+        """
+        Remove a state from all container instances.
+        """
+        for instance in cls.instances:
+            if hasattr(instance, 'remove_state'):
+                instance.remove_state(stateName)
+
     def clear_states(self):
         """
         Clear all stored states.
@@ -50,3 +67,30 @@ class StateTools(Container):
         if "allStates" in self.values and isinstance(self.values["allStates"], dict):
             self.values["allStates"].clear()
             self.values["activeState"] = "base"
+
+    @classmethod
+    def clear_states_all(cls):
+        """
+        Clear states for all container instances.
+        """
+        for instance in cls.instances:
+            if hasattr(instance, 'clear_states'):
+                instance.clear_states()
+
+    def list_states(self):
+        """
+        List all stored states.
+        """
+        if "allStates" in self.values and isinstance(self.values["allStates"], dict):
+            return list(self.values["allStates"].keys())
+        return []
+
+    @classmethod
+    def list_states_all(cls):
+        """
+        List states from the first available container instance.
+        """
+        for instance in cls.instances:
+            if hasattr(instance, 'list_states'):
+                return instance.list_states()
+        return []
