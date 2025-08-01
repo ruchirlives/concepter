@@ -1,7 +1,7 @@
 import copy
 
 
-class StateTools():
+class StateTools:
     """
     Each state entry stores the .containers value against the its named key.
     """
@@ -18,18 +18,42 @@ class StateTools():
         activeState = self.getValue("activeState")
         if not activeState:
             activeState = "base"
-        containers = copy.deepcopy(self.containers)
+
+        # Create a lightweight representation using container IDs with object ID backup
+        containers_state = []
+        for container, relationship in self.containers:
+            # Use container ID as primary, object ID as backup for same-session reliability
+            container_id = container.getValue("id")
+            container_object_id = id(container)
+            # Deep copy only the relationship dict, not the container
+            relationship_copy = copy.deepcopy(relationship) if relationship else None
+            containers_state.append((container_id, container_object_id, relationship_copy))
 
         # Save the current state
-        self.values["allStates"][activeState] = containers
+        self.values["allStates"][activeState] = containers_state
 
         # Swap for the new state
         if newState in self.values["allStates"]:
-            # grab it from the existing states
-            self.containers = copy.deepcopy(self.values["allStates"][newState])
+            # Reconstruct containers from saved state
+            self.containers = []
+            saved_state = self.values["allStates"][newState]
+            for container_id, container_object_id, relationship in saved_state:
+                # Try object ID first (fast, works if no pickle/unpickle happened)
+                container = None
+                for inst in self.__class__.instances:
+                    if id(inst) == container_object_id:
+                        container = inst
+                        break
+
+                # Fall back to container ID if object ID fails (after pickle/unpickle)
+                if not container:
+                    container = self.__class__.get_instance_by_id(container_id)
+
+                if container:
+                    self.containers.append((container, relationship))
         else:
             # store the newState with the current containers set
-            self.values["allStates"][newState] = containers
+            self.values["allStates"][newState] = containers_state
 
         # Set the new active state
         self.values["activeState"] = newState
@@ -40,7 +64,7 @@ class StateTools():
         Switch state for all container instances.
         """
         for instance in cls.instances:
-            if hasattr(instance, 'switch_state'):
+            if hasattr(instance, "switch_state"):
                 instance.switch_state(newState)
 
     def remove_state(self, stateName: str):
@@ -57,7 +81,7 @@ class StateTools():
         Remove a state from all container instances.
         """
         for instance in cls.instances:
-            if hasattr(instance, 'remove_state'):
+            if hasattr(instance, "remove_state"):
                 instance.remove_state(stateName)
 
     def clear_states(self):
@@ -74,7 +98,7 @@ class StateTools():
         Clear states for all container instances.
         """
         for instance in cls.instances:
-            if hasattr(instance, 'clear_states'):
+            if hasattr(instance, "clear_states"):
                 instance.clear_states()
 
     def list_states(self):
@@ -91,6 +115,6 @@ class StateTools():
         List states from the first available container instance.
         """
         for instance in cls.instances:
-            if hasattr(instance, 'list_states'):
+            if hasattr(instance, "list_states"):
                 return instance.list_states()
         return []
