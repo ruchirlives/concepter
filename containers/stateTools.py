@@ -120,6 +120,15 @@ class StateTools:
         return []
 
     # Compare with base state
+
+    def _check_relationship(self, relationship):
+        """
+        Check if the relationship is a dictionary and has a 'label' key.
+        """
+        if isinstance(relationship, dict) and "label" in relationship:
+            return relationship
+        return {"label": "unspecified"}
+
     def compare_with_state(self, stateName: str = "base"):
         """
         Compare the current state with the base state.
@@ -136,12 +145,13 @@ class StateTools:
 
         # Track added and changed container relationships
         for container_id, relationship in current_dict.items():
-            relationship_label = relationship["label"] if relationship else "unspecified"
+            print(f"Comparing container {container_id} with relationship {relationship}")
+            relationship_label = self._check_relationship(relationship)["label"]
             if container_id not in base_dict:
                 differences[container_id] = {"status": "added", "relationship": relationship_label}
             else:
                 base_relationship = base_dict[container_id]
-                base_relationship_label = base_relationship["label"] if base_relationship else "unspecified"
+                base_relationship_label = self._check_relationship(base_relationship)["label"]
                 if base_relationship != relationship:
                     differences[container_id] = {
                         "status": "changed",
@@ -151,7 +161,7 @@ class StateTools:
         # Track removed relationships
         for container_id, relationship in base_dict.items():
             if container_id not in current_dict:
-                relationship_label = relationship["label"] if relationship else "unspecified"
+                relationship_label = self._check_relationship(relationship)["label"]
                 differences[container_id] = {"status": "removed", "relationship": relationship_label}
 
         return differences
