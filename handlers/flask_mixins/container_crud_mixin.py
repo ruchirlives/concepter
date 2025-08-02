@@ -22,6 +22,29 @@ class ContainerCRUDMixin:
         self.app.add_url_rule("/remove_state/<stateName>", "remove_state", self.remove_state, methods=["GET"])
         self.app.add_url_rule("/clear_states", "clear_states", self.clear_states, methods=["GET"])
         self.app.add_url_rule("/list_states", "list_states", self.list_states, methods=["GET"])
+        self.app.add_url_rule("/compare_states", "compare_states", self.compare_states, methods=["POST"])
+
+    def compare_states(self):
+        """Use compare_states to compare different states of provided containers."""
+        data = request.get_json()
+        baseState = data.get("baseState")
+        containerIds = data.get("containerIds", [])
+        # Get the containers for both states
+        containers = []
+        for container_id in containerIds:
+            container = self.container_class.get_instance_by_id(container_id)
+            if not container:
+                # Try to get the container by name if ID fails
+                container = self.container_class.get_instance_by_name(container_id)
+            if not container:
+                # If still not found, try to unpickle the container
+                try:
+                    container = self.container_class.unpickle(container_id)
+                except Exception as e:
+                    logging.error(f"Failed to unpickle container {container_id}: {e}")
+            containers.append(container)
+        collected_differences = self.container_class.collect_compare_with_state(baseState, containers)
+        return jsonify({"collected_differences": collected_differences})
 
     def switch_state(self, newState):
         """Switch to a new state, saving the current containers."""

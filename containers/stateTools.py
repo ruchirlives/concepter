@@ -118,3 +118,43 @@ class StateTools:
             if hasattr(instance, "list_states"):
                 return instance.list_states()
         return []
+
+    # Compare with base state
+    def compare_with_state(self, stateName: str = "base"):
+        """
+        Compare the current state with the base state.
+        Returns a dictionary of differences.
+        """
+        base_state = self.getValue("allStates").get(stateName, {})
+        current_state = self.getValue("allStates").get(self.getValue("activeState"), {})
+
+        differences = {}
+        # Track added container relationships, removed relationships, and changed relationships
+        for container_id, container_object_id, relationship in current_state:
+            if container_id not in base_state:
+                differences[container_id] = {"status": "added", "relationship": relationship}
+            else:
+                base_relationship = base_state[container_id][2]
+                if base_relationship != relationship:
+                    differences[container_id] = {"status": "changed", "relationship": relationship}
+
+        # Track removed relationships
+        for container_id in base_state.keys():
+            if container_id not in current_state:
+                differences[container_id] = {"status": "removed", "relationship": base_state[container_id][2]}
+
+        return differences
+
+    # Collect compare with base state for instances provided in array
+    @classmethod
+    def collect_compare_with_state(cls, instances: list, stateName: str = "base"):
+        """
+        Collect differences with base state from multiple instances.
+        """
+        collected_differences = {}
+        for instance in instances:
+            if hasattr(instance, "compare_with_state"):
+                differences = instance.compare_with_state(stateName)
+                if differences:
+                    collected_differences[instance] = differences
+        return collected_differences
