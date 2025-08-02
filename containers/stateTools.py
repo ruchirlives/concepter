@@ -141,7 +141,7 @@ class StateTools:
         }
 
         # Track added and changed container relationships
-        for container_id, relationship in current_dict.items():
+        for container_id, relationship in base_dict.items():
             relationship_label = relationship['label'] if relationship else "unspecified"
             if container_id not in base_dict:
                 differences[container_id] = {"status": "added", "relationship": relationship_label}
@@ -152,7 +152,7 @@ class StateTools:
                     differences[container_id] = {"status": "changed", "relationship": base_relationship_label}
 
         # Track removed relationships
-        for container_id, relationship in base_dict.items():
+        for container_id, relationship in current_dict.items():
             if container_id not in current_dict:
                 differences[container_id] = {"status": "removed", "relationship": relationship['label']}
 
