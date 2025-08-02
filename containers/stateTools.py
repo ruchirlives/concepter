@@ -131,30 +131,28 @@ class StateTools:
         differences = {}
 
         # Convert states to dictionaries for easier comparison
-        base_dict = {
-            container_id: relationship
-            for container_id, container_object_id, relationship in base_state
-        }
-        current_dict = {
-            container_id: relationship
-            for container_id, container_object_id, relationship in current_state
-        }
+        base_dict = {container_id: relationship for container_id, container_object_id, relationship in base_state}
+        current_dict = {container_id: relationship for container_id, container_object_id, relationship in current_state}
 
         # Track added and changed container relationships
         for container_id, relationship in current_dict.items():
-            relationship_label = relationship['label'] if relationship else "unspecified"
+            relationship_label = relationship["label"] if relationship else "unspecified"
             if container_id not in base_dict:
                 differences[container_id] = {"status": "added", "relationship": relationship_label}
             else:
                 base_relationship = base_dict[container_id]
-                base_relationship_label = base_relationship['label'] if base_relationship else "unspecified"
+                base_relationship_label = base_relationship["label"] if base_relationship else "unspecified"
                 if base_relationship != relationship:
-                    differences[container_id] = {"status": "changed", "relationship": base_relationship_label}
+                    differences[container_id] = {
+                        "status": "changed",
+                        "relationship": f"{base_relationship_label} -> {relationship_label}",
+                    }
 
         # Track removed relationships
         for container_id, relationship in base_dict.items():
             if container_id not in current_dict:
-                differences[container_id] = {"status": "removed", "relationship": relationship['label']}
+                relationship_label = relationship["label"] if relationship else "unspecified"
+                differences[container_id] = {"status": "removed", "relationship": relationship_label}
 
         return differences
 
