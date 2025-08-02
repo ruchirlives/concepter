@@ -43,7 +43,7 @@ class ContainerCRUDMixin:
                 except Exception as e:
                     logging.error(f"Failed to unpickle container {container_id}: {e}")
             containers.append(container)
-        collected_differences = self.container_class.collect_compare_with_state(baseState, containers)
+        collected_differences = self.container_class.collect_compare_with_state(containers, baseState)
         return jsonify({"collected_differences": collected_differences})
 
     def switch_state(self, newState):

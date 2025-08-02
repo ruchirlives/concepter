@@ -125,23 +125,36 @@ class StateTools:
         Compare the current state with the base state.
         Returns a dictionary of differences.
         """
-        base_state = self.getValue("allStates").get(stateName, {})
-        current_state = self.getValue("allStates").get(self.getValue("activeState"), {})
+        base_state = self.getValue("allStates").get(stateName, [])
+        current_state = self.getValue("allStates").get(self.getValue("activeState"), [])
 
         differences = {}
-        # Track added container relationships, removed relationships, and changed relationships
-        for container_id, container_object_id, relationship in current_state:
-            if container_id not in base_state:
-                differences[container_id] = {"status": "added", "relationship": relationship}
+
+        # Convert states to dictionaries for easier comparison
+        base_dict = {
+            container_id: relationship
+            for container_id, container_object_id, relationship in base_state
+        }
+        current_dict = {
+            container_id: relationship
+            for container_id, container_object_id, relationship in current_state
+        }
+
+        # Track added and changed container relationships
+        for container_id, relationship in current_dict.items():
+            relationship_label = relationship['label'] if relationship else "unspecified"
+            if container_id not in base_dict:
+                differences[container_id] = {"status": "added", "relationship": relationship_label}
             else:
-                base_relationship = base_state[container_id][2]
+                base_relationship = base_dict[container_id]
+                base_relationship_label = base_relationship['label'] if base_relationship else "unspecified"
                 if base_relationship != relationship:
-                    differences[container_id] = {"status": "changed", "relationship": relationship}
+                    differences[container_id] = {"status": "changed", "relationship": base_relationship_label}
 
         # Track removed relationships
-        for container_id in base_state.keys():
-            if container_id not in current_state:
-                differences[container_id] = {"status": "removed", "relationship": base_state[container_id][2]}
+        for container_id, relationship in base_dict.items():
+            if container_id not in current_dict:
+                differences[container_id] = {"status": "removed", "relationship": relationship['label']}
 
         return differences
 
@@ -156,5 +169,5 @@ class StateTools:
             if hasattr(instance, "compare_with_state"):
                 differences = instance.compare_with_state(stateName)
                 if differences:
-                    collected_differences[instance] = differences
+                    collected_differences[instance.getValue("id")] = differences
         return collected_differences
