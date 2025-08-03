@@ -25,9 +25,13 @@ class ContainerCRUDMixin:
         self.app.add_url_rule("/compare_states", "compare_states", self.compare_states, methods=["POST"])
         self.app.add_url_rule("/apply_differences", "apply_differences", self.apply_differences, methods=["POST"])
         self.app.add_url_rule("/revert_differences", "revert_differences", self.revert_differences, methods=["POST"])
+        self.app.add_url_rule(
+            "/calculate_state_scores", "calculate_state_scores", self.calculate_state_scores, methods=["POST"]
+        )
 
     def compare_states(self):
         """Use compare_states to compare different states of provided containers."""
+
         data = request.get_json()
         baseState = data.get("baseState")
         containerIds = data.get("containerIds", [])
@@ -47,6 +51,23 @@ class ContainerCRUDMixin:
             containers.append(container)
         differences_all = self.container_class.collect_compare_with_state(containers, baseState)
         return jsonify({"differences_all": differences_all})
+
+    def calculate_state_scores(self):
+        """Calculate and print scores for all containers based on their differences."""
+        data = request.get_json()
+        baseState = data.get("baseState")
+
+        from container_base import baseTools
+
+        differences_all = self.container_class.collect_compare_with_state(baseTools.instances, baseState)
+
+        scores = self.container_class.compute_propagated_change_scores(differences_all)
+
+        for cid, score in sorted(scores.items(), key=lambda x: x[1], reverse=True):
+            container = baseTools.get_instance_by_id(cid)
+            print(f"{container.getValue('Name')}: Propagated Score = {score}")
+
+        return jsonify({"scores": scores})
 
     def switch_state(self, newState):
         """Switch to a new state, saving the current containers."""

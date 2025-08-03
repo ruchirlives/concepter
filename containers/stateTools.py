@@ -147,7 +147,7 @@ class StateTools:
 
         # Track added and changed container relationships
         for container_id, relationship in current_dict.items():
-            print(f"Comparing container {container_id} with relationship {relationship}")
+            # print(f"Comparing container {container_id} with relationship {relationship}")
             relationship_dict = self._check_relationship(relationship)
             relationship_label = relationship_dict["label"]
             if container_id not in base_dict:
@@ -258,3 +258,46 @@ class StateTools:
         for instance in instances:
             if hasattr(instance, "revert_differences"):
                 instance.revert_differences(differences)
+
+    @classmethod
+    def compute_propagated_change_scores(cls, container_delta: dict):
+        """
+        For each container, compute the sum of its own changes + all downstream changes recursively in `state`.
+        Cycles are prevented via a visited set.
+        """
+        from container_base import baseTools
+        scores = {}
+
+        def count_own_changes(change_entry: dict) -> int:
+            """
+            Count the number of relationship changes in this container's diff entry.
+            """
+            if not change_entry:
+                return 0
+            return sum(1 for rel in change_entry.values() if rel.get("status") in {"added", "removed", "changed"})
+
+        def recursive_score(container, visited):
+            cid = container.getValue("id")
+            if cid in visited:
+                return 0
+
+            visited.add(cid)
+
+            score = count_own_changes(container_delta.get(cid, {}))
+
+            # Get children in the target state
+            child_ids = [child_id for child_id in baseTools.instances]
+
+            for child_id in child_ids:
+                child = baseTools.get_instance_by_id(child_id)
+                if child:
+                    score += recursive_score(child, visited)
+
+            return score
+
+        for container in baseTools.instances:
+            visited = set()
+            cid = container.getValue("id")
+            scores[cid] = recursive_score(container, visited)
+
+        return scores
