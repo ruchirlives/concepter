@@ -472,3 +472,31 @@ class ConceptContainer(Container, StateTools):
                 container_map[object_] = object_container
             subject_container.add_container(object_container, {"label": relationship})
         return list(container_map.values())
+
+# Add and remove container by id methods
+
+    def add_container_by_id(self, container_id: str, relationship: dict):
+        """
+        Add a container by its ID.
+        """
+        container = self.get_instance_by_id(container_id)
+        if container:
+            self.add_container(container, relationship)
+
+    def remove_container_by_id(self, container_id: str):
+        """
+        Remove a container by its ID.
+        """
+        container = self.get_instance_by_id(container_id)
+        if container:
+            self.remove_container(container)
+
+    def update_container_relationship(self, container_id: str, relationship: dict):
+        """
+        Update the relationship of a container by its ID.
+        """
+        container = self.get_instance_by_id(container_id)
+        if container:
+            self.setPosition(container, relationship)
+        else:
+            raise ValueError(f"Container with ID {container_id} not found.")

@@ -127,6 +127,8 @@ class StateTools:
         """
         if isinstance(relationship, dict) and "label" in relationship:
             return relationship
+        elif isinstance(relationship, str):
+            return {"label": relationship}
         return {"label": "unspecified"}
 
     def compare_with_state(self, stateName: str = "base"):
@@ -146,23 +148,36 @@ class StateTools:
         # Track added and changed container relationships
         for container_id, relationship in current_dict.items():
             print(f"Comparing container {container_id} with relationship {relationship}")
-            relationship_label = self._check_relationship(relationship)["label"]
+            relationship_dict = self._check_relationship(relationship)
+            relationship_label = relationship_dict["label"]
             if container_id not in base_dict:
-                differences[container_id] = {"status": "added", "relationship": relationship_label}
+                differences[container_id] = {
+                    "status": "added",
+                    "relationship": relationship_label,
+                    "relationship_dict": relationship_dict,
+                }
             else:
                 base_relationship = base_dict[container_id]
+                base_relationship_dict = self._check_relationship(base_relationship)
                 base_relationship_label = self._check_relationship(base_relationship)["label"]
                 if base_relationship != relationship:
                     differences[container_id] = {
                         "status": "changed",
                         "relationship": f"{base_relationship_label} -> {relationship_label}",
+                        "relationship_dict": relationship_dict,
+                        "base_relationship_dict": base_relationship_dict,
                     }
 
         # Track removed relationships
-        for container_id, relationship in base_dict.items():
+        for container_id, base_relationship in base_dict.items():
             if container_id not in current_dict:
-                relationship_label = self._check_relationship(relationship)["label"]
-                differences[container_id] = {"status": "removed", "relationship": relationship_label}
+                base_relationship_dict = self._check_relationship(base_relationship)
+                relationship_label = base_relationship_dict["label"]
+                differences[container_id] = {
+                    "status": "removed",
+                    "relationship": relationship_label,
+                    "base_relationship_dict": base_relationship_dict,
+                }
 
         return differences
 
@@ -172,10 +187,74 @@ class StateTools:
         """
         Collect differences with base state from multiple instances.
         """
-        collected_differences = {}
+        differences_all = {}
         for instance in instances:
             if hasattr(instance, "compare_with_state"):
                 differences = instance.compare_with_state(stateName)
                 if differences:
-                    collected_differences[instance.getValue("id")] = differences
-        return collected_differences
+                    differences_all[instance.getValue("id")] = differences
+        return differences_all
+
+    def apply_differences(self, differences: dict):
+        """
+        Apply the differences to self container in the current state.
+        """
+        # Get the differences specific to this container instance
+        container_id = self.getValue("id")
+        if container_id not in differences:
+            return  # No differences for this container
+
+        container_differences = differences[container_id]
+
+        for child_container_id, change in container_differences.items():
+            if change["status"] == "added":
+                relationship_dict = change.get("relationship_dict", {})
+                self.add_container_by_id(child_container_id, relationship_dict)
+            elif change["status"] == "changed":
+                relationship_dict = change.get("relationship_dict", {})
+                # base_relationship_dict = change.get("base_relationship_dict", {})
+                container = self.get_instance_by_id(child_container_id)
+                if container:
+                    self.update_container_relationship(child_container_id, relationship_dict)
+            elif change["status"] == "removed":
+                # base_relationship_dict = change.get("base_relationship_dict", {})
+                self.remove_container_by_id(child_container_id)
+
+    def revert_differences(self, differences: dict):
+        """
+        Revert the differences in the current state.
+        """
+        # Get the differences specific to this container instance
+        container_id = self.getValue("id")
+        if container_id not in differences:
+            return  # No differences for this container
+
+        container_differences = differences[container_id]
+
+        for child_container_id, change in container_differences.items():
+            if change["status"] == "added":
+                self.remove_container_by_id(child_container_id)
+            elif change["status"] == "changed":
+                base_relationship_dict = change.get("base_relationship_dict", {})
+                self.update_container_relationship(child_container_id, base_relationship_dict)
+            elif change["status"] == "removed":
+                relationship_dict = change.get("relationship_dict", {})
+                self.add_container_by_id(child_container_id, relationship_dict)
+
+    @classmethod
+    def apply_differences_all(cls, instances: list, differences: dict):
+        """
+        Apply differences to all instances.
+        """
+        for instance in instances:
+            if hasattr(instance, "apply_differences"):
+                instance.apply_differences(differences)
+
+    @classmethod
+    def revert_differences_all(cls, instances: list, differences: dict):
+        """
+        Revert differences in all instances.
+        """
+        for instance in instances:
+            if hasattr(instance, "revert_differences"):
+                instance.revert_differences(differences)

@@ -23,6 +23,8 @@ class ContainerCRUDMixin:
         self.app.add_url_rule("/clear_states", "clear_states", self.clear_states, methods=["GET"])
         self.app.add_url_rule("/list_states", "list_states", self.list_states, methods=["GET"])
         self.app.add_url_rule("/compare_states", "compare_states", self.compare_states, methods=["POST"])
+        self.app.add_url_rule("/apply_differences", "apply_differences", self.apply_differences, methods=["POST"])
+        self.app.add_url_rule("/revert_differences", "revert_differences", self.revert_differences, methods=["POST"])
 
     def compare_states(self):
         """Use compare_states to compare different states of provided containers."""
@@ -43,8 +45,8 @@ class ContainerCRUDMixin:
                 except Exception as e:
                     logging.error(f"Failed to unpickle container {container_id}: {e}")
             containers.append(container)
-        collected_differences = self.container_class.collect_compare_with_state(containers, baseState)
-        return jsonify({"collected_differences": collected_differences})
+        differences_all = self.container_class.collect_compare_with_state(containers, baseState)
+        return jsonify({"differences_all": differences_all})
 
     def switch_state(self, newState):
         """Switch to a new state, saving the current containers."""
@@ -187,3 +189,111 @@ class ContainerCRUDMixin:
                 target_container.setValue(key, value)
 
         return jsonify({"message": "Containers written back successfully"})
+
+    def apply_differences(self):
+        """Apply differences to specified containers."""
+        data = request.get_json()
+        containerIds = data.get("containerIds", [])
+        differences = data.get("differences", {})
+        targetState = data.get("targetState", None)  # State to apply differences to
+
+        if not containerIds:
+            return jsonify({"message": "No container IDs provided"}), 400
+
+        if not differences:
+            return jsonify({"message": "No differences provided"}), 400
+
+        try:
+            # Store the current state to restore later
+            original_state = None
+            if targetState:
+                # Get the current active state from any container instance
+                if self.container_class.instances:
+                    original_state = self.container_class.instances[0].getValue("activeState")
+                # Switch to target state
+                self.container_class.switch_state_all(targetState)
+            # Get the containers for the specified IDs
+            containers = []
+            for container_id in containerIds:
+                container = self.container_class.get_instance_by_id(container_id)
+                if not container:
+                    # Try to get the container by name if ID fails
+                    container = self.container_class.get_instance_by_name(container_id)
+                if not container:
+                    # If still not found, try to unpickle the container
+                    try:
+                        container = self.container_class.unpickle(container_id)
+                    except Exception as e:
+                        logging.error(f"Failed to unpickle container {container_id}: {e}")
+                        continue
+                containers.append(container)
+
+            # Apply differences to all found containers
+            self.container_class.apply_differences_all(containers, differences)
+
+            # Restore original state if we switched
+            if targetState and original_state and original_state != targetState:
+                self.container_class.switch_state_all(original_state)
+
+            message = f"Differences applied to {len(containers)} containers successfully"
+            if targetState:
+                message += f" in state '{targetState}'"
+            return jsonify({"message": message})
+
+        except Exception as e:
+            logging.error(f"Error applying differences: {e}")
+            return jsonify({"message": "Error applying differences", "error": str(e)}), 500
+
+    def revert_differences(self):
+        """Revert differences from specified containers."""
+        data = request.get_json()
+        containerIds = data.get("containerIds", [])
+        differences = data.get("differences", {})
+        targetState = data.get("targetState", None)  # State to revert differences in
+
+        if not containerIds:
+            return jsonify({"message": "No container IDs provided"}), 400
+
+        if not differences:
+            return jsonify({"message": "No differences provided"}), 400
+
+        try:
+            # Store the current state to restore later
+            original_state = None
+            if targetState:
+                # Get the current active state from any container instance
+                if self.container_class.instances:
+                    original_state = self.container_class.instances[0].getValue("activeState")
+                # Switch to target state
+                self.container_class.switch_state_all(targetState)
+            # Get the containers for the specified IDs
+            containers = []
+            for container_id in containerIds:
+                container = self.container_class.get_instance_by_id(container_id)
+                if not container:
+                    # Try to get the container by name if ID fails
+                    container = self.container_class.get_instance_by_name(container_id)
+                if not container:
+                    # If still not found, try to unpickle the container
+                    try:
+                        container = self.container_class.unpickle(container_id)
+                    except Exception as e:
+                        logging.error(f"Failed to unpickle container {container_id}: {e}")
+                        continue
+                containers.append(container)
+
+            # Revert differences from all found containers
+            self.container_class.revert_differences_all(containers, differences)
+
+            # Restore original state if we switched
+            if targetState and original_state and original_state != targetState:
+                self.container_class.switch_state_all(original_state)
+
+            message = f"Differences reverted from {len(containers)} containers successfully"
+            if targetState:
+                message += f" in state '{targetState}'"
+            return jsonify({"message": message})
+
+        except Exception as e:
+            logging.error(f"Error reverting differences: {e}")
+            return jsonify({"message": "Error reverting differences", "error": str(e)}), 500
