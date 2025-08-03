@@ -129,7 +129,7 @@ class StateTools:
             return relationship
         elif isinstance(relationship, str):
             return {"label": relationship}
-        return {"label": "unspecified"}
+        return {"label": ""}
 
     def compare_with_state(self, stateName: str = "base"):
         """
@@ -160,7 +160,7 @@ class StateTools:
                 base_relationship = base_dict[container_id]
                 base_relationship_dict = self._check_relationship(base_relationship)
                 base_relationship_label = self._check_relationship(base_relationship)["label"]
-                if base_relationship != relationship:
+                if base_relationship_dict != relationship_dict:
                     differences[container_id] = {
                         "status": "changed",
                         "relationship": f"{base_relationship_label} -> {relationship_label}",
