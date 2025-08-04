@@ -11,6 +11,7 @@ class ContainerTaskMixin:
         self.app.add_url_rule("/request_rekey", "request_rekey", self.request_rekey, methods=["GET"])
         # request_dedup
         self.app.add_url_rule("/request_dedup", "request_dedup", self.request_dedup, methods=["GET"])
+        self.app.add_url_rule("/recopy_values", "recopy_values", self.recopy_values, methods=["GET"])
 
     def get_task_containers(self):
         """Get containers tagged with task."""
@@ -63,3 +64,8 @@ class ContainerTaskMixin:
         from container_base import baseTools
         baseTools.deduplicate_all()
         return jsonify({"message": "Deduplication requested successfully"})
+
+    def recopy_values(self):
+        """Request recopying of container values."""
+        self.container_class.recopy_values()
+        return jsonify({"message": "Recopying requested successfully"})

@@ -218,6 +218,21 @@ class baseTools:
         if len(ids) != len(set(ids)):
             print("Warning: Duplicate IDs found after rekeying.")
 
+    @classmethod
+    def recopy_values(cls):
+        """
+        Ensures all container values are deep copied and not shared between instances.
+        This method recreates the values dictionary for each container to prevent
+        unintended sharing of mutable objects.
+        """
+        # Get all containers even ones that are not in the cls.instances list
+        all_containers = cls.get_all_containers()
+        for container in all_containers:
+            # Create a deep copy of the current values to ensure no sharing
+            container.values = copy.deepcopy(container.values)
+
+        print(f"All container values have been deep copied. {len(all_containers)} containers processed.")
+
     # deduplicate_all
     @classmethod
     def deduplicate_all(cls):
