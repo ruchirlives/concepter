@@ -103,11 +103,15 @@ class StateTools:
 
     def list_states(self):
         """
-        List all stored states.
+        List all stored states. If "base" is not present, switch to it first.
         """
-        if "allStates" in self.values and isinstance(self.values["allStates"], dict):
-            return list(self.values["allStates"].keys())
-        return []
+        if "allStates" not in self.values or not isinstance(self.values["allStates"], dict):
+            self.values["allStates"] = {}
+
+        if "base" not in self.values["allStates"]:
+            self.switch_state("base")
+
+        return list(self.values["allStates"].keys())
 
     @classmethod
     def list_states_all(cls):
