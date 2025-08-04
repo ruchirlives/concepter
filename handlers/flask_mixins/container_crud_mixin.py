@@ -18,8 +18,8 @@ class ContainerCRUDMixin:
             "/write_back_containers", "write_back_containers", self.write_back_containers, methods=["POST"]
         )
         # Add state management routes
-        self.app.add_url_rule("/switch_state/<newState>", "switch_state", self.switch_state, methods=["GET"])
-        self.app.add_url_rule("/remove_state/<stateName>", "remove_state", self.remove_state, methods=["GET"])
+        self.app.add_url_rule("/switch_state", "switch_state", self.switch_state, methods=["POST"])
+        self.app.add_url_rule("/remove_state", "remove_state", self.remove_state, methods=["POST"])
         self.app.add_url_rule("/clear_states", "clear_states", self.clear_states, methods=["GET"])
         self.app.add_url_rule("/list_states", "list_states", self.list_states, methods=["GET"])
         self.app.add_url_rule("/compare_states", "compare_states", self.compare_states, methods=["POST"])
@@ -69,18 +69,30 @@ class ContainerCRUDMixin:
 
         return jsonify({"scores": scores})
 
-    def switch_state(self, newState):
+    def switch_state(self):
         """Switch to a new state, saving the current containers."""
         try:
+            data = request.get_json()
+            newState = data.get("state")
+
+            if not newState:
+                return jsonify({"message": "No state provided"}), 400
+
             self.container_class.switch_state_all(newState)
             return jsonify({"message": f"Switched to state '{newState}' successfully"})
         except Exception as e:
             logging.error(f"Error switching state: {e}")
             return jsonify({"message": "Error switching state", "error": str(e)}), 500
 
-    def remove_state(self, stateName):
+    def remove_state(self):
         """Remove a state by its name."""
         try:
+            data = request.get_json()
+            stateName = data.get("state")
+
+            if not stateName:
+                return jsonify({"message": "No state name provided"}), 400
+
             self.container_class.remove_state_all(stateName)
             return jsonify({"message": f"State '{stateName}' removed successfully"})
         except Exception as e:
