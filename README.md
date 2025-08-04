@@ -28,12 +28,21 @@ Before building or running the app, create a `.env` file in the project root wit
 HOME = 
 OPENAI_API_KEY = 
 RUNTIME_ENV=local
+API_PASSCODE = your-secure-passcode-here
 
 # MONGODB
 MONGO_URL = 
 MONGO_CERT_NAME =  # ending .pem
 MONGO_CLOUD_PATH =  # Cloud runtime location of .pem file
 ```
+
+### 🔐 API Authentication
+
+The application includes passcode-based authentication for all API endpoints. See [AUTHENTICATION.md](./AUTHENTICATION.md) for detailed setup and usage instructions.
+
+* Set `API_PASSCODE` environment variable to enable authentication
+* All API requests must include `X-Passcode` header
+* Static files and documentation routes are excluded from authentication
 
 ### 🔑 Required Files
 
