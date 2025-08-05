@@ -66,14 +66,12 @@ class ContainerPersistenceMixin:
 
     def delete_project(self):
         """Delete a project from database."""
-        from handlers.mongodb_handler import delete_project
-
         data = request.get_json() or {}
         project_name = data.get("project_name")
         if not project_name:
             return jsonify({"message": "No project_name provided"}), 400
 
-        success = delete_project(project_name)
+        success = self.container_class.delete_project_from_db(project_name)
         if success:
             return jsonify({"message": "Project deleted successfully"})
         else:

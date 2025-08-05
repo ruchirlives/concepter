@@ -239,7 +239,7 @@ class baseTools:
         """
         Deduplicate all containers by removing duplicates based on their IDs.
         :param keep_last: If True, keeps the last occurrence of each ID (default, useful for imports).
-                         If False, keeps the first occurrence.
+        If False, keeps the first occurrence.
         """
         seen_ids = set()
         unique_containers = []

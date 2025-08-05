@@ -94,6 +94,13 @@ class ConceptContainer(Container, StateTools):
         return "WORKED"
 
     @classmethod
+    def delete_project_from_db(cls, project_name: str) -> bool:
+        """Delete a project from storage."""
+        if cls.repository is None:
+            raise RuntimeError("ContainerRepository not configured")
+        return cls.repository.delete_project(project_name)
+
+    @classmethod
     def get_task_containers(cls):
         # Get all containers that have a "task" tag
         task_containers = []

@@ -5,7 +5,6 @@ from container_base import Container, baseTools
 from containers.projectContainer import ProjectContainer
 import logging
 from time import sleep
-from handlers.mongodb_handler import delete_project
 import datetime
 from functools import wraps
 

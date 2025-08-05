@@ -49,24 +49,6 @@ db = client["Concepter"]
 print("✅ Connected to MongoDB.")
 
 
-def delete_project(project_name: str) -> bool:
-    """
-    Removes a project document by name from the projects collection.
-    Returns True if a document was deleted, False otherwise.
-    """
-    try:
-        # Assume all projects are stored in a single collection named "projects"
-        result = db["collections"].delete_one({"name": project_name})
-        if result.deleted_count == 0:
-            print(f"⚠️ No document found for project: {project_name}")
-            return False
-        print(f"✅ Deleted project document: {project_name}")
-        return True
-    except Exception as e:
-        print(f"❌ Error deleting project document {project_name}: {e}")
-        return False
-
-
 class MongoContainerRepository(ContainerRepository):
     """MongoDB implementation of ContainerRepository using the `collections` collection."""
 
@@ -92,3 +74,16 @@ class MongoContainerRepository(ContainerRepository):
             {"$set": {"data": Binary(blob)}},
             upsert=True,
         )
+
+    def delete_project(self, name: str) -> bool:
+        """Delete a project by name. Returns True if successful, False otherwise."""
+        try:
+            result = self.COLL.delete_one({"name": name})
+            if result.deleted_count == 0:
+                print(f"⚠️ No document found for project: {name}")
+                return False
+            print(f"✅ Deleted project document: {name}")
+            return True
+        except Exception as e:
+            print(f"❌ Error deleting project document {name}: {e}")
+            return False
