@@ -235,21 +235,30 @@ class baseTools:
 
     # deduplicate_all
     @classmethod
-    def deduplicate_all(cls):
+    def deduplicate_all(cls, keep_last=True):
         """
         Deduplicate all containers by removing duplicates based on their IDs.
+        :param keep_last: If True, keeps the last occurrence of each ID (default, useful for imports).
+                         If False, keeps the first occurrence.
         """
         seen_ids = set()
         unique_containers = []
 
-        for container in cls.instances:
+        containers_to_process = reversed(cls.instances) if keep_last else cls.instances
+
+        for container in containers_to_process:
             container_id = container.getValue("id")
             if container_id not in seen_ids:
                 seen_ids.add(container_id)
                 unique_containers.append(container)
 
+        # If we processed in reverse, reverse back to maintain original order
+        if keep_last:
+            unique_containers = list(reversed(unique_containers))
+
         cls.instances = unique_containers
-        print(f"Deduplication complete. {len(cls.instances)} unique containers remain.")
+        keep_type = "last" if keep_last else "first"
+        print(f"Deduplication complete (keeping {keep_type}). {len(cls.instances)} unique containers remain.")
 
     @classmethod
     def get_all_containers(cls):

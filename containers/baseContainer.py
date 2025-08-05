@@ -67,6 +67,8 @@ class ConceptContainer(Container, StateTools):
         if cls.repository is None:
             raise RuntimeError("ContainerRepository not configured")
         baseTools.instances.extend(cls.repository.load_project(project_name))
+        # Remove duplicates, keeping the newly imported ones (default behavior)
+        baseTools.deduplicate_all()
         return "WORKED"
 
     @classmethod
