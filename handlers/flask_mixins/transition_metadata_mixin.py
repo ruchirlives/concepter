@@ -8,22 +8,16 @@ class TransitionMetadataMixin:
     def setup_transition_metadata_routes(self):
         """Setup routes for transition metadata operations."""
         self.app.add_url_rule(
-            "/save_transition_metadata",
-            "save_transition_metadata",
-            self.save_transition_metadata,
-            methods=["POST"]
+            "/save_transition_metadata", "save_transition_metadata", self.save_transition_metadata, methods=["POST"]
         )
         self.app.add_url_rule(
-            "/load_transition_metadata",
-            "load_transition_metadata",
-            self.load_transition_metadata,
-            methods=["GET"]
+            "/load_transition_metadata", "load_transition_metadata", self.load_transition_metadata, methods=["GET"]
         )
         self.app.add_url_rule(
             "/delete_transition_metadata",
             "delete_transition_metadata",
             self.delete_transition_metadata,
-            methods=["DELETE"]
+            methods=["DELETE"],
         )
 
     def save_transition_metadata(self):
@@ -42,7 +36,7 @@ class TransitionMetadataMixin:
             # Use the class repository that was set up in app.py
             if self.container_class.repository is None:
                 return jsonify({"message": "Repository not configured"}), 500
-                
+
             self.container_class.repository.save_transition_metadata(metadata)
 
             logging.info("Transition metadata saved successfully")
@@ -58,9 +52,9 @@ class TransitionMetadataMixin:
             # Use the class repository that was set up in app.py
             if self.container_class.repository is None:
                 return jsonify({"message": "Repository not configured"}), 500
-                
+
             metadata = self.container_class.repository.load_transition_metadata()
-            
+
             if metadata is None:
                 logging.info("No transition metadata found")
                 return jsonify({"metadata": None, "message": "No transition metadata found"})
@@ -78,9 +72,9 @@ class TransitionMetadataMixin:
             # Use the class repository that was set up in app.py
             if self.container_class.repository is None:
                 return jsonify({"message": "Repository not configured"}), 500
-                
+
             deleted = self.container_class.repository.delete_transition_metadata()
-            
+
             if not deleted:
                 return jsonify({"message": "No transition metadata found to delete"}), 404
 
