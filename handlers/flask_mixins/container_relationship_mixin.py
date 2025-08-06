@@ -78,7 +78,7 @@ class ContainerRelationshipMixin:
         for child_id in children_ids:
             child = self.container_class.get_instance_by_id(child_id)
             if child not in container.getChildren() and child != container:
-                self.add_child_with_tags(container, child)
+                container.add_container(child)
 
         return jsonify({"message": "Children added successfully"})
 
