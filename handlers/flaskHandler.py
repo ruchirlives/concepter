@@ -17,6 +17,7 @@ from handlers.flask_mixins.container_task_mixin import ContainerTaskMixin
 from handlers.flask_mixins.container_export_mixin import ContainerExportMixin
 from handlers.flask_mixins.static_files_mixin import StaticFilesMixin
 from handlers.flask_mixins.container_serialization_mixin import ContainerSerializationMixin
+from handlers.flask_mixins.transition_metadata_mixin import TransitionMetadataMixin
 from handlers.openai_mixins.container_tag_mixin import ContainerTagMixin
 from handlers.openai_mixins.vector_similarity_mixin import VectorSimilarityMixin
 from handlers.openai_mixins.reasoning_chain_mixin import ReasoningChainMixin
@@ -74,6 +75,7 @@ class FlaskServer(
     ContainerExportMixin,
     StaticFilesMixin,
     ContainerSerializationMixin,
+    TransitionMetadataMixin,
     ContainerTagMixin,
     VectorSimilarityMixin,
     ReasoningChainMixin,
@@ -91,6 +93,7 @@ class FlaskServer(
         self.setup_task_routes()
         self.setup_export_routes()
         self.setup_static_routes()
+        self.setup_transition_metadata_routes()
 
         # Apply authentication to all API routes
         self.apply_authentication_to_routes()

@@ -1,9 +1,10 @@
 import os
 import sys
 import pickle
+import json
 from pymongo import MongoClient
 from dotenv import load_dotenv
-from typing import List, Any
+from typing import List, Any, Dict, Optional
 from bson import Binary
 from handlers.repository_handler import ContainerRepository
 
@@ -86,4 +87,62 @@ class MongoContainerRepository(ContainerRepository):
             return True
         except Exception as e:
             print(f"❌ Error deleting project document {name}: {e}")
+            return False
+
+    def save_transition_metadata(self, metadata: Dict[str, Any]) -> None:
+        """Save transition metadata to MongoDB."""
+        try:
+            # Convert metadata to JSON string for storage
+            metadata_json = json.dumps(metadata, indent=2)
+
+            # Save to the collections collection with a special document name
+            self.COLL.update_one(
+                {"name": "transition_metadata"},
+                {"$set": {"data": metadata_json, "type": "transition_metadata"}},
+                upsert=True,
+            )
+            print("✅ Transition metadata saved successfully")
+        except Exception as e:
+            print(f"❌ Error saving transition metadata: {e}")
+            raise
+
+    def load_transition_metadata(self) -> Optional[Dict[str, Any]]:
+        """Load transition metadata from MongoDB. Returns None if not found."""
+        try:
+            # Find the transition metadata document
+            doc = self.COLL.find_one({"name": "transition_metadata"})
+
+            if not doc:
+                print("ℹ️ No transition metadata found")
+                return None
+
+            # Parse the JSON data
+            metadata_json = doc.get("data", "{}")
+
+            # If data is stored as a string, parse it; if it's already a dict, use it directly
+            if isinstance(metadata_json, str):
+                metadata = json.loads(metadata_json)
+            else:
+                metadata = metadata_json
+
+            print("✅ Transition metadata loaded successfully")
+            return metadata
+        except json.JSONDecodeError as e:
+            print(f"❌ JSON decoding error: {e}")
+            raise
+        except Exception as e:
+            print(f"❌ Error loading transition metadata: {e}")
+            raise
+
+    def delete_transition_metadata(self) -> bool:
+        """Delete transition metadata. Returns True if successful, False otherwise."""
+        try:
+            result = self.COLL.delete_one({"name": "transition_metadata"})
+            if result.deleted_count == 0:
+                print("⚠️ No transition metadata found to delete")
+                return False
+            print("✅ Deleted transition metadata successfully")
+            return True
+        except Exception as e:
+            print(f"❌ Error deleting transition metadata: {e}")
             return False
