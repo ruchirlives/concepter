@@ -30,26 +30,33 @@ class ContainerCRUDMixin:
         )
 
     def compare_states(self):
-        """Use compare_states to compare different states of provided containers."""
-
+        """Compare two arbitrary states for provided containers, without switching active state."""
         data = request.get_json()
-        baseState = data.get("baseState")
+        source_state = data.get("sourceState")
+        target_state = data.get("targetState")
         containerIds = data.get("containerIds", [])
-        # Get the containers for both states
+        if not source_state or not target_state:
+            return jsonify({"message": "Both sourceState and targetState must be provided."}), 400
+
         containers = []
         for container_id in containerIds:
             container = self.container_class.get_instance_by_id(container_id)
             if not container:
-                # Try to get the container by name if ID fails
                 container = self.container_class.get_instance_by_name(container_id)
             if not container:
-                # If still not found, try to unpickle the container
                 try:
                     container = self.container_class.unpickle(container_id)
                 except Exception as e:
                     logging.error(f"Failed to unpickle container {container_id}: {e}")
             containers.append(container)
-        differences_all = self.container_class.collect_compare_with_state(containers, baseState)
+
+        differences_all = {}
+        for container in containers:
+            if container:
+                diff = container.compare_two_states(source_state, target_state)
+                if diff:
+                    differences_all[container.getValue("id")] = diff
+
         return jsonify({"differences_all": differences_all})
 
     def calculate_state_scores(self):

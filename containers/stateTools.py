@@ -2,6 +2,55 @@ import copy
 
 
 class StateTools:
+    def compare_two_states(self, source_state: str, target_state: str):
+        """
+        Compare two arbitrary states by name, without switching active state.
+        Returns a dictionary of differences (added, removed, changed relationships).
+        """
+        all_states = self.getValue("allStates")
+        source = all_states.get(source_state, [])
+        target = all_states.get(target_state, [])
+
+        differences = {}
+
+        # Convert states to dictionaries for easier comparison
+        source_dict = {container_id: relationship for container_id, container_object_id, relationship in source}
+        target_dict = {container_id: relationship for container_id, container_object_id, relationship in target}
+
+        # Track added and changed container relationships
+        for container_id, relationship in target_dict.items():
+            relationship_dict = self._check_relationship(relationship)
+            relationship_label = relationship_dict["label"]
+            if container_id not in source_dict:
+                differences[container_id] = {
+                    "status": "added",
+                    "relationship": relationship_label,
+                    "relationship_dict": relationship_dict,
+                }
+            else:
+                source_relationship = source_dict[container_id]
+                source_relationship_dict = self._check_relationship(source_relationship)
+                source_relationship_label = source_relationship_dict["label"]
+                if source_relationship_dict != relationship_dict:
+                    differences[container_id] = {
+                        "status": "changed",
+                        "relationship": f"{source_relationship_label} -> {relationship_label}",
+                        "relationship_dict": relationship_dict,
+                        "base_relationship_dict": source_relationship_dict,
+                    }
+
+        # Track removed relationships
+        for container_id, source_relationship in source_dict.items():
+            if container_id not in target_dict:
+                source_relationship_dict = self._check_relationship(source_relationship)
+                relationship_label = source_relationship_dict["label"]
+                differences[container_id] = {
+                    "status": "removed",
+                    "relationship": relationship_label,
+                    "base_relationship_dict": source_relationship_dict,
+                }
+
+        return differences
     """
     Each state entry stores the .containers value against the its named key.
     """
