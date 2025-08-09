@@ -79,6 +79,18 @@ class MongoContainerRepository(ContainerRepository):
     def delete_project(self, name: str) -> bool:
         """Delete a project by name. Returns True if successful, False otherwise."""
         try:
+            # First save backup
+            backup = self.COLL.find_one({"name": name})
+            if not backup:
+                print(f"⚠️ No project found to backup: {name}")
+                return False
+            # Save backup to the same collection replacing previous backup
+            self.COLL.update_one(
+                {"name": f"{name}_backup"},
+                {"$set": {"data": backup["data"]}},
+                upsert=True,
+            )
+
             result = self.COLL.delete_one({"name": name})
             if result.deleted_count == 0:
                 print(f"⚠️ No document found for project: {name}")
