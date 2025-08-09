@@ -20,3 +20,4 @@ build/
 # Others
 *.log
 output.mmd
+handlers/miro_handler.py
