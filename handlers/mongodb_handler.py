@@ -137,6 +137,17 @@ class MongoContainerRepository(ContainerRepository):
     def delete_transition_metadata(self) -> bool:
         """Delete transition metadata. Returns True if successful, False otherwise."""
         try:
+            # First save backup
+            backup = self.COLL.find_one({"name": "transition_metadata"})
+            if not backup:
+                print("⚠️ No transition metadata found to backup")
+                return False
+            # Save backup to a same collection replacing previous backup
+            self.COLL.update_one(
+                {"name": "transition_metadata_backup"},
+                {"$set": {"data": backup}},
+                upsert=True,
+            )
             result = self.COLL.delete_one({"name": "transition_metadata"})
             if result.deleted_count == 0:
                 print("⚠️ No transition metadata found to delete")
