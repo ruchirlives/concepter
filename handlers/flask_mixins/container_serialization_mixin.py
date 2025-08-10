@@ -5,7 +5,22 @@ class ContainerSerializationMixin:
     """Mixin for serializing container data for API responses."""
 
     def serialize_container_info(self, containers):
-        """Serialize container information for JSON responses."""
+        """Serialize container information for JSON responses, only specifying special conversions."""
+        # Specify only keys that need special conversion
+        special_conversions = {
+            "StartDate": lambda v: (
+                v.date().isoformat()
+                if isinstance(v, datetime.datetime)
+                else v.isoformat() if isinstance(v, datetime.date) else None
+            ),
+            "EndDate": lambda v: (
+                v.date().isoformat()
+                if isinstance(v, datetime.datetime)
+                else v.isoformat() if isinstance(v, datetime.date) else None
+            ),
+            "Tags": lambda v: ",".join(v or []),
+        }
+
         export = []
         for container in containers:
             if not container.getValue("id"):
@@ -15,46 +30,19 @@ class ContainerSerializationMixin:
             if container not in self.container_class.instances:
                 self.container_class.instances.append(container)
 
-            id = container.getValue("id")
-            Name = container.getValue("Name")
+            # Dynamically get all keys from the container's class_values
+            export_keys = list(getattr(container.__class__, "class_values", {}).keys())
+            # Always include 'id' and 'Name' if not present
+            if "id" not in export_keys:
+                export_keys.insert(0, "id")
+            if "Name" not in export_keys:
+                export_keys.insert(1, "Name")
 
-            # Handle StartDate - only date, never time
-            StartDate = container.getValue("StartDate")
-            if isinstance(StartDate, datetime.datetime):
-                StartDate = StartDate.date().isoformat()
-            elif isinstance(StartDate, datetime.date):
-                StartDate = StartDate.isoformat()
-            else:
-                StartDate = None
-
-            # Handle EndDate - only date, never time
-            EndDate = container.getValue("EndDate")
-            if isinstance(EndDate, datetime.datetime):
-                EndDate = EndDate.date().isoformat()
-            elif isinstance(EndDate, datetime.date):
-                EndDate = EndDate.isoformat()
-            else:
-                EndDate = None
-
-            TimeRequired = container.getValue("TimeRequired")
-            Horizon = container.getValue("Horizon")
-            Impact = container.getValue("Impact")
-            Effort = container.getValue("Effort")
-            tags = container.getValue("Tags") or []
-            tags = ",".join(tags)
-
-            export.append(
-                {
-                    "id": container.getValue("id"),
-                    "Name": container.getValue("Name"),
-                    "Tags": tags,
-                    "Description": container.getValue("Description"),
-                    "StartDate": StartDate,
-                    "EndDate": EndDate,
-                    "TimeRequired": TimeRequired,
-                    "Horizon": Horizon,
-                    "Impact": Impact,
-                    "Effort": Effort,
-                }
-            )
+            item = {}
+            for key in export_keys:
+                value = container.getValue(key)
+                if key in special_conversions:
+                    value = special_conversions[key](value)
+                item[key] = value
+            export.append(item)
         return export

@@ -21,14 +21,7 @@ class ProjectContainer(ConceptContainer):
 
     class_values = ConceptContainer.class_values.copy()
     class_values.update(
-        {
-            "Lead": "",
-            "TimeRequired": 0,
-            "StartDate": None,
-            "EndDate": None,
-            "Impact": 0.0,
-            "Effort": 0.0,
-        }
+        {"Lead": "", "TimeRequired": 0, "StartDate": None, "EndDate": None, "Impact": 0.0, "Effort": 0.0, "Cost": 0.0}
     )
 
     def export_docx(self, *args):
@@ -155,60 +148,47 @@ class ProjectContainer(ConceptContainer):
         exporter.save_to_file("gantt.mmd")
         return exporter.to_mermaid()
 
+    def convert_to_budget_container(self):
+        """Convert the current project container to a budget container."""
+        self.__class__ = BudgetContainer
+        # Set Cost to 0
+        self.setValue("Cost", 0)
+        return self
+
 
 class BudgetContainer(ProjectContainer):
-    # instances = ProjectContainer.instances
     class_values = ProjectContainer.class_values.copy()
     months = ProjectContainer.months
-
-    class_values.update(
-        {
-            "Budget": 0,
-        }
-    )
-    class_values.update({month: None for month in months})
-
-    def getRawValue(self, key):
-        val = self.values.get(key, None)
-        return val
-
-    # Overidden method
+    class_values.update({"Budget": 0, **{month: None for month in months}})
 
     def getValue(self, key):
-
         if key == "Budget":
-            # Get all containers that are children of this container
-            children = self.getChildren()
+            # First add own Cost
+            budget = self.values.get("Cost", 0)
 
-            # remove children that have None for the budget
-            children = [child for child in children if child.getValue("Budget") is not None]
+            # Now add children's Budgets recursively
+            for child in self.getChildren():
+                child_budget = child.getValue("Budget")
+                if child_budget is not None:
+                    budget += float(child_budget)
+            return budget
 
-            if children == []:
-                # return raw value
-                return self.getRawValue(key)
-            else:
-                # Sum the budget of all children
-                child_sum = sum([float(child.getValue("Budget")) for child in children])
-                return child_sum
-
-        # If the key is a month, return the value of the month
         elif key in self.months:
-            if self.getRawValue(key) is None:
-                # If the month is not set, we shall calculate the month amount
-                # First sum all the self.months that are set
-                monthly_set = [
-                    float(self.getRawValue(month)) for month in self.months if self.getRawValue(month) is not None
-                ]
-                budget = self.getValue("Budget")
-                if monthly_set == [] or budget is None:
-                    return self.getRawValue(key)
-                else:
-                    total = sum(monthly_set)
-                    # Calculate the remaining budget
-                    remaining = float(budget) - total
-                    # Calculate the month amount
-                    return remaining / len([month for month in self.months if self.getRawValue(month) is None])
-
+            raw = self.values.get(key, None)
+            if raw is not None:
+                return raw
+            monthly_set = [
+                float(self.values.get(month, None)) for month in self.months if self.values.get(month, None) is not None
+            ]
+            budget = self.getValue("Budget")
+            if not monthly_set or budget is None:
+                return raw
+            total = sum(monthly_set)
+            remaining = float(budget) - total
+            unset_months = [month for month in self.months if self.values.get(month, None) is None]
+            if unset_months:
+                return remaining / len(unset_months)
+            return 0
         return super().getValue(key)
 
 
@@ -218,16 +198,12 @@ class MonthlyBudgetContainer(BudgetContainer):
 
     def getValue(self, key):
         if key == "Budget":
-            # Sum the self.months
             monthly_array = [
-                float(self.getRawValue(month)) for month in self.months if self.getRawValue(month) is not None
+                float(self.values.get(month, None)) for month in self.months if self.values.get(month, None) is not None
             ]
-
-            if monthly_array == []:
-                return self.getRawValue(key)
-            else:
-                return sum(monthly_array)
-
+            if not monthly_array:
+                return self.values.get(key, None)
+            return sum(monthly_array)
         return super().getValue(key)
 
 

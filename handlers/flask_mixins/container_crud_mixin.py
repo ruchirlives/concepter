@@ -175,7 +175,7 @@ class ContainerCRUDMixin:
 
     def join_containers(self):
         """Join multiple containers into one."""
-        from containers.ConceptContainer import ConceptContainer
+        from containers.conceptContainer import ConceptContainer
 
         data = request.get_json()
         container_ids = data.get("containers", [])
@@ -217,7 +217,7 @@ class ContainerCRUDMixin:
             for key, value in container.items():
                 if key == "StartDate" or key == "EndDate":
                     value = target_container.parse_date_auto(value)
-                elif key in ("TimeRequired", "Impact", "Effort"):
+                elif key in ("TimeRequired", "Impact", "Effort", "Cost"):
                     if value:
                         value = float(value)
                 elif key == "Tags":
