@@ -175,7 +175,7 @@ class ContainerCRUDMixin:
 
     def join_containers(self):
         """Join multiple containers into one."""
-        from containers.baseContainer import ConceptContainer
+        from containers.ConceptContainer import ConceptContainer
 
         data = request.get_json()
         container_ids = data.get("containers", [])

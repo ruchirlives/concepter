@@ -4,7 +4,7 @@ Example usage of the transition metadata repository pattern.
 This demonstrates how to use the repository through the container class.
 """
 
-from containers.baseContainer import ConceptContainer
+from containers.ConceptContainer import ConceptContainer
 from handlers.mongodb_handler import MongoContainerRepository
 
 

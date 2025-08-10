@@ -1,7 +1,7 @@
 from handlers.flaskHandler import FlaskServer
 from containers.projectContainer import ProjectContainer
 from handlers.mongodb_handler import MongoContainerRepository
-from containers.baseContainer import ConceptContainer
+from containers.ConceptContainer import ConceptContainer
 import threading
 
 import dotenv
