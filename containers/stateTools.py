@@ -2,6 +2,24 @@ import copy
 
 
 class StateTools:
+    def rename_state(self, old_name: str, new_name: str):
+        """
+        Rename a state by updating its key in the allStates dictionary.
+        """
+        all_states = self.getValue("allStates")
+        if old_name in all_states:
+            all_states[new_name] = all_states.pop(old_name)
+            self.setValue("allStates", all_states)
+
+    @classmethod
+    def rename_state_all(cls, old_name: str, new_name: str):
+        """
+        Rename a state for all container instances.
+        """
+        for instance in cls.instances:
+            if hasattr(instance, "rename_state"):
+                instance.rename_state(old_name, new_name)
+
     def compare_two_states(self, source_state: str, target_state: str):
         """
         Compare two arbitrary states by name, without switching active state.
@@ -51,6 +69,7 @@ class StateTools:
                 }
 
         return differences
+
     """
     Each state entry stores the .containers value against the its named key.
     """
@@ -167,12 +186,11 @@ class StateTools:
         """
         List states from the first available container instance.
         """
+        all_states = set()
         for instance in cls.instances:
             if hasattr(instance, "list_states"):
-                return instance.list_states()
-        return []
-
-    # Compare with base state
+                all_states.update(instance.list_states())
+        return all_states
 
     def _check_relationship(self, relationship):
         """
@@ -319,6 +337,7 @@ class StateTools:
         Cycles are prevented via a visited set.
         """
         from container_base import baseTools
+
         scores = {}
 
         def count_own_changes(change_entry: dict) -> int:
