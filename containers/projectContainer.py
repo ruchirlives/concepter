@@ -1,4 +1,4 @@
-from containers.ConceptContainer import ConceptContainer
+from containers.conceptContainer import ConceptContainer
 from datetime import date, timedelta
 from helpers.mermaidGanttExporter import MermaidGanttExporter
 
