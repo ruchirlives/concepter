@@ -5,4 +5,4 @@ from handlers.openai_handler import openai_handler
 
 class StateContainer(BaseContainer):
     class_values = BaseContainer.class_values.copy()
-    class_values.update({"State": {}, "allStates": {}, "activeState": "base"})
+    # class_values.update({"State": {})
