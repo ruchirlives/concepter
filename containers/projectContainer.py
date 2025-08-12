@@ -161,7 +161,7 @@ class BudgetContainer(ProjectContainer):
     months = ProjectContainer.months
     class_values.update({"Budget": 0, **{month: None for month in months}})
 
-    def getValue(self, key):
+    def getValue(self, key, ifNone=None):
         if key == "Budget":
             # First add own Cost
             budget = self.values.get("Cost", 0)
@@ -189,22 +189,22 @@ class BudgetContainer(ProjectContainer):
             if unset_months:
                 return remaining / len(unset_months)
             return 0
-        return super().getValue(key)
+        return super().getValue(key, ifNone=ifNone)
 
 
 class MonthlyBudgetContainer(BudgetContainer):
     # instances = BudgetContainer.instances
     class_values = BudgetContainer.class_values
 
-    def getValue(self, key):
+    def getValue(self, key, ifNone=None):
         if key == "Budget":
             monthly_array = [
                 float(self.values.get(month, None)) for month in self.months if self.values.get(month, None) is not None
             ]
             if not monthly_array:
-                return self.values.get(key, None)
+                return self.values.get(key, ifNone=ifNone)
             return sum(monthly_array)
-        return super().getValue(key)
+        return super().getValue(key, ifNone=ifNone)
 
 
 # DID THIS WORK
