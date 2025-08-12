@@ -157,9 +157,9 @@ class ProjectContainer(ConceptContainer):
 
 
 class BudgetContainer(ProjectContainer):
+
     class_values = ProjectContainer.class_values.copy()
-    months = ProjectContainer.months
-    class_values.update({"Budget": 0, **{month: None for month in months}})
+    class_values.update({"Budget": 0})
 
     def getValue(self, key, ifNone=None):
         if key == "Budget":
@@ -172,41 +172,36 @@ class BudgetContainer(ProjectContainer):
                 if child_budget is not None:
                     budget += float(child_budget)
             return budget
-
-        elif key in self.months:
-            raw = self.values.get(key, None)
-            if raw is not None:
-                return raw
-            monthly_set = [
-                float(self.values.get(month, None)) for month in self.months if self.values.get(month, None) is not None
-            ]
-            budget = self.getValue("Budget")
-            if not monthly_set or budget is None:
-                return raw
-            total = sum(monthly_set)
-            remaining = float(budget) - total
-            unset_months = [month for month in self.months if self.values.get(month, None) is None]
-            if unset_months:
-                return remaining / len(unset_months)
-            return 0
         return super().getValue(key, ifNone=ifNone)
 
 
-class MonthlyBudgetContainer(BudgetContainer):
-    # instances = BudgetContainer.instances
-    class_values = BudgetContainer.class_values
+class FinanceContainer(BudgetContainer):
+    """Finance container for managing financial data within a project."""
+
+    class_values = BudgetContainer.class_values.copy()
+    class_values.update({"Function": "Budget*2"})
 
     def getValue(self, key, ifNone=None):
         if key == "Budget":
-            monthly_array = [
-                float(self.values.get(month, None)) for month in self.months if self.values.get(month, None) is not None
-            ]
-            if not monthly_array:
-                return self.values.get(key, ifNone=ifNone)
-            return sum(monthly_array)
+            # First add own Cost
+            budget = self.values.get("Cost", 0)
+
+            # Now add children's Budgets recursively
+            for child in self.getChildren():
+                child_budget = child.getValue("Budget")
+                if child_budget is not None:
+                    budget += float(child_budget)
+
+            # Parse and evaluate the Function formula
+            function = self.values.get("Function", "")
+            if function:
+                # Replace 'Budget' with the computed budget value in the formula
+                formula = function.replace("Budget", str(budget))
+                try:
+                    # Evaluate the formula safely
+                    result = eval(formula, {"__builtins__": {}})
+                    return result
+                except Exception:
+                    return budget  # fallback to budget if formula fails
+            return budget
         return super().getValue(key, ifNone=ifNone)
-
-
-# DID THIS WORK
-class TESTContainer(ProjectContainer):
-    pass

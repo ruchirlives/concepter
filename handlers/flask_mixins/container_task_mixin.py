@@ -1,7 +1,7 @@
 from flask import jsonify, request, send_file
 import datetime
 
-from containers.projectContainer import BudgetContainer
+from containers.projectContainer import BudgetContainer, FinanceContainer
 
 
 class ContainerTaskMixin:
@@ -21,9 +21,27 @@ class ContainerTaskMixin:
             self.convert_to_budget_container,
             methods=["POST"],
         )
+        # add FinanceContainer
+        self.app.add_url_rule(
+            "/add_finance_container",
+            "add_finance_container",
+            self.add_finance_container,
+            methods=["POST"],
+        )
         # request_dedup
         self.app.add_url_rule("/request_dedup", "request_dedup", self.request_dedup, methods=["GET"])
         self.app.add_url_rule("/recopy_values", "recopy_values", self.recopy_values, methods=["GET"])
+
+    def add_finance_container(self):
+        """Add a finance container."""
+        container_ids = request.json.get("container_ids", [])
+        for container_id in container_ids:
+            container = self.container_class.get_instance_by_id(container_id)
+            if container:
+                finance_container = FinanceContainer()
+                finance_container.setValue("Name", f"Finance - {container.getValue('Name')}")
+                finance_container.add_container(container)
+        return jsonify({"message": "Finance container added successfully"})
 
     def convert_to_budget_container(self):
         """Convert the current project container to a budget container."""
