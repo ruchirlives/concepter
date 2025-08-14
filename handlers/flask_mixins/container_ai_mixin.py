@@ -18,6 +18,7 @@ class ContainerAIMixin:
         )
         self.app.add_url_rule("/embed_containers", "embed_containers", self.embed_containers, methods=["POST"])
         self.app.add_url_rule("/add_similar", "add_similar", self.add_similar, methods=["POST"])
+        self.app.add_url_rule("/join_similar", "join_similar", self.join_similar, methods=["POST"])
         self.app.add_url_rule("/build_relationships", "build_relationships", self.build_relationships, methods=["POST"])
         self.app.add_url_rule(
             "/suggest_relationship", "suggest_relationship", self.suggest_relationship, methods=["POST"]
@@ -195,6 +196,53 @@ class ContainerAIMixin:
                 self.add_child_with_tags(container, child)
 
         return jsonify({"message": f"Top 5 scoring of {counter} similar containers added successfully"})
+
+    def join_similar(self):
+        """Join top similar containers into a single new container."""
+        data = request.get_json()
+        children_ids = data["children_ids"]
+        parent_id = data["parent_id"]
+        container = self.container_class.get_instance_by_id(parent_id)
+
+        # Check if parent container has embeddings
+        parent_z = container.getValue("z")
+        if parent_z is None:
+            print("Parent container has no z, embedding parent container")
+            container.embed_containers([container])
+            parent_z = container.getValue("z")
+
+        counter = 0
+        candidate_children = []
+
+        for child_id in children_ids:
+            child = self.container_class.get_instance_by_id(child_id)
+            if child not in container.getChildren() and child != container:
+                child_z = child.getValue("z")
+                if child_z is None:
+                    continue
+
+                # Vector match parent_z and child_z
+                score = self.vector_match(parent_z, child_z)
+                print("Score: " + str(score))
+                if score > 0.8:
+                    candidate_children.append(child)
+                    counter += 1
+
+        # Sort candidates by score
+        candidate_children.sort(key=lambda x: self.vector_match(parent_z, x.getValue("z")), reverse=True)
+
+        if not candidate_children:
+            return jsonify({"message": "No similar containers found"})
+
+        joined_container = self.container_class.joinContainers(candidate_children[:5])
+        self.add_child_with_tags(container, joined_container)
+
+        return jsonify(
+            {
+                "message": f"Top 5 scoring of {counter} similar containers joined successfully",
+                "new_container_id": joined_container.getValue("id"),
+            }
+        )
 
     def suggest_relationship(self):
         """Suggest a relationship between two containers using OpenAI."""
