@@ -198,7 +198,8 @@ class ContainerAIMixin:
         return jsonify({"message": f"Top 5 scoring of {counter} similar containers added successfully"})
 
     def join_similar(self):
-        """Join top similar containers into a single new container, cycling through unmatched containers up to 10 times."""
+        """Join top similar containers into a single new container,
+        cycling through unmatched containers up to 10 times."""
         data = request.get_json()
         container_ids = data["container_ids"]
         remaining_ids = set(container_ids)
@@ -274,9 +275,7 @@ class ContainerAIMixin:
             return jsonify({"error": "Invalid subject or object ID"}), 404
 
         try:
-            relationship_description = self.container_class.suggest_relationship(
-                subject_container, object_container
-            )
+            relationship_description = self.container_class.suggest_relationship(subject_container, object_container)
             return jsonify({"relationship": relationship_description})
 
         except Exception as e:
