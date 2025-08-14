@@ -353,6 +353,11 @@ class ConceptContainer(Container, StateTools):
 
         return joined_container
 
+    @classmethod
+    def joinContainers(cls, containers):
+        """Alias for join_containers to maintain backwards compatibility."""
+        return cls.join_containers(containers)
+
     def add_parent(self, parent, sibling):
         """
         Add a parent to this container, ensuring no duplicates.
