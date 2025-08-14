@@ -198,49 +198,63 @@ class ContainerAIMixin:
         return jsonify({"message": f"Top 5 scoring of {counter} similar containers added successfully"})
 
     def join_similar(self):
-        """Join top similar containers into a single new container."""
+        """Join top similar containers into a single new container, cycling through unmatched containers up to 10 times."""
         data = request.get_json()
-        children_ids = data["children_ids"]
-        parent_id = data["parent_id"]
-        container = self.container_class.get_instance_by_id(parent_id)
-
-        # Check if parent container has embeddings
-        parent_z = container.getValue("z")
-        if parent_z is None:
-            print("Parent container has no z, embedding parent container")
-            container.embed_containers([container])
+        container_ids = data["container_ids"]
+        remaining_ids = set(container_ids)
+        joined_ids = []
+        cycles = 0
+        new_container_ids = []
+        while remaining_ids and cycles < 10:
+            cycles += 1
+            # Always use the first remaining container as the base
+            base_id = next(iter(remaining_ids))
+            container = self.container_class.get_instance_by_id(base_id)
             parent_z = container.getValue("z")
+            if parent_z is None:
+                print("Parent container has no z, embedding parent container")
+                container.embed_containers([container])
+                parent_z = container.getValue("z")
 
-        counter = 0
-        candidate_children = []
+            candidate_children = []
+            for child_id in list(remaining_ids):
+                child = self.container_class.get_instance_by_id(child_id)
+                if child not in container.getChildren() and child != container:
+                    child_z = child.getValue("z")
+                    if child_z is None:
+                        child.embed_containers([child])
+                        child_z = child.getValue("z")
+                    score = self.vector_match(parent_z, child_z)
+                    print("Score: " + str(score))
+                    if score > 0.8:
+                        candidate_children.append(child)
 
-        for child_id in children_ids:
-            child = self.container_class.get_instance_by_id(child_id)
-            if child not in container.getChildren() and child != container:
-                child_z = child.getValue("z")
-                if child_z is None:
-                    continue
+            # Sort candidates by score
+            candidate_children.sort(key=lambda x: self.vector_match(parent_z, x.getValue("z")), reverse=True)
 
-                # Vector match parent_z and child_z
-                score = self.vector_match(parent_z, child_z)
-                print("Score: " + str(score))
-                if score > 0.8:
-                    candidate_children.append(child)
-                    counter += 1
+            if not candidate_children:
+                # Remove the base container from remaining_ids and continue
+                remaining_ids.remove(base_id)
+                continue
 
-        # Sort candidates by score
-        candidate_children.sort(key=lambda x: self.vector_match(parent_z, x.getValue("z")), reverse=True)
+            # Add base container to candidates
+            candidate_children.insert(0, container)
+            joined_container = self.container_class.join_containers(candidate_children[:5])
+            new_id = joined_container.getValue("id")
+            new_container_ids.append(new_id)
+            # Remove all joined containers from remaining_ids
+            for c in candidate_children[:5]:
+                cid = c.getValue("id")
+                if cid in remaining_ids:
+                    remaining_ids.remove(cid)
 
-        if not candidate_children:
+        if not new_container_ids:
             return jsonify({"message": "No similar containers found"})
-
-        joined_container = self.container_class.joinContainers(candidate_children[:5])
-        self.add_child_with_tags(container, joined_container)
 
         return jsonify(
             {
-                "message": f"Top 5 scoring of {counter} similar containers joined successfully",
-                "new_container_id": joined_container.getValue("id"),
+                "message": f"Joined containers in up to {cycles} cycles.",
+                "new_container_ids": new_container_ids,
             }
         )
 
