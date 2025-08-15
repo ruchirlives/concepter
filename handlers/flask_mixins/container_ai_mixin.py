@@ -17,6 +17,7 @@ class ContainerAIMixin:
             "/categorize_containers", "categorize_containers", self.categorize_containers, methods=["POST"]
         )
         self.app.add_url_rule("/embed_containers", "embed_containers", self.embed_containers, methods=["POST"])
+        self.app.add_url_rule("/embed_positions", "embed_positions", self.embed_positions, methods=["POST"])
         self.app.add_url_rule("/add_similar", "add_similar", self.add_similar, methods=["POST"])
         self.app.add_url_rule("/join_similar", "join_similar", self.join_similar, methods=["POST"])
         self.app.add_url_rule("/build_relationships", "build_relationships", self.build_relationships, methods=["POST"])
@@ -154,6 +155,38 @@ class ContainerAIMixin:
 
         self.container_class.embed_containers(containers)
         return jsonify({"message": "Containers embedded successfully"})
+
+    def embed_positions(self):
+        """Generate embeddings for relationship positions."""
+        data = request.get_json() or {}
+        container_ids = data.get("container_ids", [])
+
+        if not container_ids:
+            return jsonify({"message": "No container IDs provided"}), 400
+
+        for container_id in container_ids:
+            container = self.container_class.get_instance_by_id(container_id)
+            if not container:
+                continue
+
+            for child, position in container.getPositions():
+                label = ""
+                if isinstance(position, dict):
+                    label_val = position.get("label", "")
+                    if isinstance(label_val, list):
+                        label = " ".join(label_val)
+                    else:
+                        label = str(label_val)
+                else:
+                    label = str(position)
+                    position = {"label": label}
+
+                text = f"{container.getValue('Name')} {label} {child.getValue('Name')}".strip()
+                z = openai_handler.get_embeddings(text)
+                position["z"] = z
+                container.setPosition(child, position)
+
+        return jsonify({"message": "Positions embedded successfully"})
 
     def add_similar(self):
         """Add similar containers based on embeddings."""
