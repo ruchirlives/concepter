@@ -26,6 +26,9 @@ class ContainerAIMixin:
         )
         self.app.add_url_rule("/build_chain_beam", "build_chain_beam", self.build_chain_beam, methods=["POST"])
         self.app.add_url_rule("/autocomplete", "autocomplete", self.autocomplete, methods=["POST"])
+        self.app.add_url_rule(
+            "/find_similar_positions", "find_similar_positions", self.find_similar_positions, methods=["POST"]
+        )
 
     def autocomplete(self):
         data = request.json
@@ -189,7 +192,7 @@ class ContainerAIMixin:
         return jsonify({"message": "Positions embedded successfully"})
 
     def find_similar_positions(self):
-        """Find similar positions based on embeddings. Parameter is a string which needs to be embedded."""
+        """Find containers with similar position embeddings (from position dicts set by embed_positions)."""
         data = request.get_json()
         position_text = data.get("position_text", "")
         if not position_text:
@@ -200,20 +203,29 @@ class ContainerAIMixin:
         if position_embedding is None:
             return jsonify({"message": "Failed to generate embedding"}), 500
 
-        # Find containers with similar position embeddings
-        similar_containers = []
+        # Find containers/positions with similar position embeddings
+        similar_positions = []
         for container in self.container_class.get_all_instances():
-            container_embedding = container.getValue("z")
-            if container_embedding is not None:
-                score = self.vector_match(position_embedding, container_embedding)
-                if score > 0.8:
-                    similar_containers.append(container)
+            # getPositions() yields (child, position_dict)
+            for child, position in getattr(container, 'getPositions', lambda: [])():
+                z = None
+                if isinstance(position, dict):
+                    z = position.get("z")
+                if z is not None:
+                    score = self.vector_match(position_embedding, z)
+                    if score > 0.77:
+                        similar_positions.append({
+                            "container_id": container.getValue("id"),
+                            "position_label": position.get("label"),
+                            "child_id": child.getValue("id"),
+                            "score": score
+                        })
 
         return (
             jsonify(
                 {
                     "message": "Similar positions found",
-                    "similar_containers": [c.getValue("id") for c in similar_containers],
+                    "similar_positions": similar_positions,
                 }
             ),
             200,
