@@ -188,6 +188,37 @@ class ContainerAIMixin:
 
         return jsonify({"message": "Positions embedded successfully"})
 
+    def find_similar_positions(self):
+        """Find similar positions based on embeddings. Parameter is a string which needs to be embedded."""
+        data = request.get_json()
+        position_text = data.get("position_text", "")
+        if not position_text:
+            return jsonify({"message": "No position text provided"}), 400
+
+        # Get the embedding for the provided position text
+        position_embedding = openai_handler.get_embeddings(position_text)
+        if position_embedding is None:
+            return jsonify({"message": "Failed to generate embedding"}), 500
+
+        # Find containers with similar position embeddings
+        similar_containers = []
+        for container in self.container_class.get_all_instances():
+            container_embedding = container.getValue("z")
+            if container_embedding is not None:
+                score = self.vector_match(position_embedding, container_embedding)
+                if score > 0.8:
+                    similar_containers.append(container)
+
+        return (
+            jsonify(
+                {
+                    "message": "Similar positions found",
+                    "similar_containers": [c.getValue("id") for c in similar_containers],
+                }
+            ),
+            200,
+        )
+
     def add_similar(self):
         """Add similar containers based on embeddings."""
         data = request.get_json()
