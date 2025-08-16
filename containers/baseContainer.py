@@ -38,19 +38,34 @@ class BaseContainer(Container):
             raise RuntimeError("ContainerRepository not configured")
         new_instances = cls.repository.load_project(project_name)
         for instance in new_instances:
-            # Check if instance is already in baseTools, and if so rewire its parents and children to the new instance, then remove the old one
-            existing_instance = baseTools.get_instance_by_id(instance.id)
+            # Check if instance is already in baseTools, and if so rewire its parents and children to the new instance
+            # then remove the old one
+            existing_instance = baseTools.get_instance_by_id(instance.getValue("id"))
             if existing_instance:
-                existing_instance.rewire(instance)
-                baseTools.remove_instance(existing_instance)
+                existing_instance.rewire(instance, new_instances)
+                existing_instance.delete()
         # Remove duplicates, keeping the newly imported ones (default behavior)
-        baseTools.deduplicate_all()
+        baseTools.instances.extend(new_instances)
         return "WORKED"
 
-    def rewire(self, new_instance: "BaseContainer"):
+    def rewire(self, new_instance: "BaseContainer", all_instances: List["BaseContainer"]):
         """Rewire self's parents to new_instance, then same with children."""
-        parents = self.getParents()
-        children = self.containers
+        for parent in self.getParents():
+            # Skip if  parent already in all_instances
+            if parent in all_instances:
+                continue
+            # Get relationship as well
+            relationship = parent.getPosition(self)
+            parent.remove_container(self)
+            parent.add_container(new_instance, relationship)
+
+        for child in self.getChildren():
+            # Skip if child already in all_instances
+            if child in all_instances:
+                continue
+            # Get relationship as well
+            relationship = self.getPosition(child)
+            new_instance.add_container(child, relationship)
 
     @classmethod
     def export_containers(cls, project_name: str, containers: List[Any]) -> str:
