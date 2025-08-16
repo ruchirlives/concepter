@@ -21,7 +21,7 @@ class ProjectContainer(ConceptContainer):
 
     class_values = ConceptContainer.class_values.copy()
     class_values.update(
-        {"Lead": "", "TimeRequired": 0, "StartDate": None, "EndDate": None, "Impact": 0.0, "Effort": 0.0, "Cost": 0.0}
+        {"Lead": "", "TimeRequired": 0, "StartDate": None, "EndDate": None, "Cost": 0.0}
     )
 
     def export_docx(self, *args):
