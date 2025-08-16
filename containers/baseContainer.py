@@ -36,10 +36,21 @@ class BaseContainer(Container):
         """Load additional containers into the in-memory list."""
         if cls.repository is None:
             raise RuntimeError("ContainerRepository not configured")
-        baseTools.instances.extend(cls.repository.load_project(project_name))
+        new_instances = cls.repository.load_project(project_name)
+        for instance in new_instances:
+            # Check if instance is already in baseTools, and if so rewire its parents and children to the new instance, then remove the old one
+            existing_instance = baseTools.get_instance_by_id(instance.id)
+            if existing_instance:
+                existing_instance.rewire(instance)
+                baseTools.remove_instance(existing_instance)
         # Remove duplicates, keeping the newly imported ones (default behavior)
         baseTools.deduplicate_all()
         return "WORKED"
+
+    def rewire(self, new_instance: "BaseContainer"):
+        """Rewire self's parents to new_instance, then same with children."""
+        parents = self.getParents()
+        children = self.containers
 
     @classmethod
     def export_containers(cls, project_name: str, containers: List[Any]) -> str:

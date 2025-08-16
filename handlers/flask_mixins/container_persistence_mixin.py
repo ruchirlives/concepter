@@ -11,6 +11,7 @@ class ContainerPersistenceMixin:
         self.app.add_url_rule("/load_containers", "load_containers", self.load_containers, methods=["POST"])
         self.app.add_url_rule("/import_containers", "import_containers", self.import_containers, methods=["POST"])
         self.app.add_url_rule("/export_selected", "export_selected", self.export_containers, methods=["POST"])
+        self.app.add_url_rule("/export_branch", "export_branch", self.export_branch, methods=["POST"])
         self.app.add_url_rule(
             "/get_loadable_containers", "get_loadable_containers", self.get_loadable_containers, methods=["GET"]
         )
@@ -52,6 +53,37 @@ class ContainerPersistenceMixin:
             if container:
                 containers.append(container)
 
+        if containers:
+            project_name = f'Export {containers[0].getValue("Name")} et al.'
+            self.container_class.export_containers(project_name, containers)
+            return jsonify({"message": "Containers exported successfully"})
+        else:
+            return jsonify({"message": "No containers to export"})
+
+    def export_branch(self):
+        """Export the selected containers and all their dependencies recursively."""
+
+        from containers.baseContainer import BaseContainer
+        data = request.get_json()
+        containerIds = data.get("containers", [])
+        containers = set()
+
+        def recurse(container: BaseContainer):
+            """Recursively find all dependencies of a container."""
+            dependencies = container.containers
+            for dep, _ in dependencies:
+                if dep not in containers:
+                    containers.add(dep)
+                    recurse(dep)
+
+        # Start recursion from the user-specified containers
+        for containerId in containerIds:
+            container = self.container_class.get_instance_by_id(containerId)
+            if container and container not in containers:
+                containers.add(container)
+                recurse(container)
+
+        containers = list(containers)
         if containers:
             project_name = f'Export {containers[0].getValue("Name")} et al.'
             self.container_class.export_containers(project_name, containers)
