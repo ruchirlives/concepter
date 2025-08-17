@@ -161,14 +161,20 @@ class BudgetContainer(ProjectContainer):
     class_values = ProjectContainer.class_values.copy()
     class_values.update({"Budget": 0})
 
-    def getValue(self, key, ifNone=None):
+    def getValue(self, key, ifNone=None, visited=None):
         if key == "Budget":
+            if visited is None:
+                visited = set()
+            # Prevent infinite recursion by checking if self is already visited
+            if id(self) in visited:
+                return 0
+            visited.add(id(self))
             # First add own Cost
             budget = self.values.get("Cost", 0)
 
             # Now add children's Budgets recursively
             for child in self.getChildren():
-                child_budget = child.getValue("Budget")
+                child_budget = child.getValue("Budget", visited=visited)
                 if child_budget is not None:
                     budget += float(child_budget)
             return budget
@@ -181,14 +187,20 @@ class FinanceContainer(BudgetContainer):
     class_values = BudgetContainer.class_values.copy()
     class_values.update({"Function": "Budget*2"})
 
-    def getValue(self, key, ifNone=None):
+    def getValue(self, key, ifNone=None, visited=None):
         if key == "Budget":
+            if visited is None:
+                visited = set()
+            # Prevent infinite recursion by checking if self is already visited
+            if id(self) in visited:
+                return 0
+            visited.add(id(self))
             # First add own Cost
             budget = self.values.get("Cost", 0)
 
             # Now add children's Budgets recursively
             for child in self.getChildren():
-                child_budget = child.getValue("Budget")
+                child_budget = child.getValue("Budget", visited=visited)
                 if child_budget is not None:
                     budget += float(child_budget)
 

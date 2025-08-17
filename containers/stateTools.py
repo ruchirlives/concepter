@@ -190,7 +190,7 @@ class StateTools:
         for instance in cls.instances:
             if hasattr(instance, "list_states"):
                 all_states.update(instance.list_states())
-        return all_states
+        return list(all_states)
 
     def _check_relationship(self, relationship):
         """
