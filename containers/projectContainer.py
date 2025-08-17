@@ -174,7 +174,11 @@ class BudgetContainer(ProjectContainer):
 
             # Now add children's Budgets recursively
             for child in self.getChildren():
-                child_budget = child.getValue("Budget", visited=visited)
+                # Only pass 'visited' to children that support it
+                if hasattr(child, 'getValue') and 'visited' in child.getValue.__code__.co_varnames:
+                    child_budget = child.getValue("Budget", visited=visited)
+                else:
+                    child_budget = child.getValue("Budget")
                 if child_budget is not None:
                     budget += float(child_budget)
             return budget
@@ -200,7 +204,10 @@ class FinanceContainer(BudgetContainer):
 
             # Now add children's Budgets recursively
             for child in self.getChildren():
-                child_budget = child.getValue("Budget", visited=visited)
+                if hasattr(child, 'getValue') and 'visited' in child.getValue.__code__.co_varnames:
+                    child_budget = child.getValue("Budget", visited=visited)
+                else:
+                    child_budget = child.getValue("Budget")
                 if child_budget is not None:
                     budget += float(child_budget)
 
