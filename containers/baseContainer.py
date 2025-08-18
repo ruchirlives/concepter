@@ -6,6 +6,7 @@ import datetime
 
 CLASS_REGISTRY = {}
 
+
 class BaseContainer(Container):
     # Class‐level repository reference (set during app startup)
     repository: ContainerRepository | None = None  # type: ignore
@@ -41,13 +42,13 @@ class BaseContainer(Container):
         if cls.repository is None:
             raise RuntimeError("ContainerRepository not configured")
         new_instances = cls.repository.load_project(project_name)
-        for instance in new_instances:
-            # Check if instance is already in baseTools, and if so rewire its parents and children to the new instance
-            # then remove the old one
-            existing_instance = baseTools.get_instance_by_id(instance.getValue("id"))
-            if existing_instance:
-                existing_instance.rewire(instance, new_instances)
-                existing_instance.delete()
+        # for instance in new_instances:
+        #     # Check if instance is already in baseTools, and if so rewire its parents and children to the new instance
+        #     # then remove the old one
+        #     existing_instance = baseTools.get_instance_by_id(instance.getValue("id"))
+        #     if existing_instance:
+        #         existing_instance.rewire(instance, new_instances)
+        #         existing_instance.delete()
         # Remove duplicates, keeping the newly imported ones (default behavior)
         baseTools.instances.extend(new_instances)
         return "WORKED"
@@ -147,7 +148,10 @@ class BaseContainer(Container):
                 values[k] = v
 
         # normal edges
-        edges = [{"to": child.getValue("id"), "position": pos} for child, pos in self.containers]
+        edges = [
+            {"to": child.getValue("id"), "position": pos, "Name": child.getValue("Name")}
+            for child, pos in self.containers
+        ]
 
         # add any pending edges (may include unmatched references)
         if getattr(self, "_pending_edges", None):

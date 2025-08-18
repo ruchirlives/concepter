@@ -117,7 +117,10 @@ class MongoContainerRepository(ContainerRepository):
         # update project document with membership list
         self.COLL.update_one(
             {"name": name},
-            {"$set": {"nodes": proj_nodes}},
+            {
+                "$set": {"nodes": proj_nodes},
+                "$unset": {"data": ""}  # remove legacy field if present
+            },
             upsert=True,
         )
 

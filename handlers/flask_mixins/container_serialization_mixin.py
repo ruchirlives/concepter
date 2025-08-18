@@ -44,5 +44,10 @@ class ContainerSerializationMixin:
                 if key in special_conversions:
                     value = special_conversions[key](value)
                 item[key] = value
+
+            # If pending edges exist, include them in the export
+            if container._pending_edges:
+                item["PendingEdges"] = container._pending_edges
+
             export.append(item)
         return export
