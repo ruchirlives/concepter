@@ -52,16 +52,41 @@ print("✅ Connected to MongoDB.")
 
 
 class MongoContainerRepository(ContainerRepository):
+    @staticmethod
+    def rehydrate_edges_for_containers(containers: list):
+        """Rehydrate edges among all loaded containers (for both single and multiple loads)."""
+        # Build id map from all instantiated containers (important for imports)
+        from containers.baseContainer import BaseContainer
+
+        full_id_map = {c.getValue("id"): c for c in BaseContainer.instances}
+
+        # Rehydrate edges among all loaded containers
+        for inst in BaseContainer.instances:
+            unmatched = []
+            for edge in getattr(inst, "_pending_edges", []):
+                tgt = full_id_map.get(edge["to"])
+                if tgt:
+                    inst.setPosition(tgt, edge["position"])
+                else:
+                    unmatched.append(edge)
+            # keep only unmatched edges
+            inst._pending_edges = unmatched if unmatched else []
+
     NODES = db["nodes"]
     COLL = db["collections"]
 
     def load_node(self, node_id: Any) -> Optional[BaseContainer]:
-        """Load an individual node document by its id and deserialize it into a BaseContainer instance."""
+        """Load an individual node document by its id and
+        deserialize it into a BaseContainer instance, rehydrating edges."""
         doc = self.NODES.find_one({"_id": node_id})
         if not doc:
             print(f"⚠️ No node found with id: {node_id}")
             return None
+        print(f"✅ doc: {doc}")
         inst = BaseContainer.deserialize_node_info(doc)
+        # Rehydrate edges for all loaded containers
+        self.rehydrate_edges_for_containers([inst])
+        # refresh
         return inst
 
     def list_project_names(self) -> List[str]:
@@ -92,21 +117,8 @@ class MongoContainerRepository(ContainerRepository):
             id_map[d["_id"]] = inst
             containers.append(inst)
 
-        # build id map from all instantiated containers (important for imports)
-        full_id_map = {c.getValue("id"): c for c in BaseContainer.instances}
-
-        # rehydrate edges among all loaded containers
-        for inst in BaseContainer.instances:
-            unmatched = []
-            for edge in getattr(inst, "_pending_edges", []):
-                tgt = full_id_map.get(edge["to"])
-                if tgt:
-                    inst.setPosition(tgt, edge["position"])
-                else:
-                    unmatched.append(edge)
-
-            # keep only unmatched edges
-            inst._pending_edges = unmatched if unmatched else []
+        # Rehydrate edges for all loaded containers
+        self.rehydrate_edges_for_containers(containers)
 
         return containers
 
@@ -126,10 +138,7 @@ class MongoContainerRepository(ContainerRepository):
         # update project document with membership list
         self.COLL.update_one(
             {"name": name},
-            {
-                "$set": {"nodes": proj_nodes},
-                "$unset": {"data": ""}  # remove legacy field if present
-            },
+            {"$set": {"nodes": proj_nodes}, "$unset": {"data": ""}},  # remove legacy field if present
             upsert=True,
         )
 

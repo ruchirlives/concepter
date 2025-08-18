@@ -39,6 +39,12 @@ class BaseContainer(Container):
         return "WORKED"
 
     @classmethod
+    def load_node(cls, node_id: Any):
+        if cls.repository is None:
+            raise RuntimeError("ContainerRepository not configured")
+        return cls.repository.load_node(node_id)
+
+    @classmethod
     def import_containers(cls, project_name: str) -> str:
         """Load additional containers into the in-memory list."""
         if cls.repository is None:

@@ -29,12 +29,14 @@ class ContainerCRUDMixin:
             "/calculate_state_scores", "calculate_state_scores", self.calculate_state_scores, methods=["POST"]
         )
         # Add route for loading a single node from the repository
-        self.app.add_url_rule("/load_node/<id>", "load_node", self.load_node, methods=["GET"])
+        self.app.add_url_rule("/load_node", "load_node", self.load_node, methods=["POST"])
 
-    def load_node(self, id):
+    def load_node(self):
         """API endpoint to load a single node from the repository by its id."""
         try:
-            node = self.repository.load_node(id)
+            data = request.get_json()
+            node_id = data.get("id")
+            node = self.container_class.load_node(node_id)
             if node:
                 export = self.serialize_container_info([node])
                 return jsonify({"containers": export})
