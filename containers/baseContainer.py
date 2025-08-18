@@ -1,10 +1,10 @@
 from helpers.random_names import random_names
 from container_base import Container, baseTools
-from handlers.openai_handler import openai_handler
 from typing import List, Any
 from handlers.repository_handler import ContainerRepository
-from containers.stateTools import StateTools
+import datetime
 
+CLASS_REGISTRY = {}
 
 class BaseContainer(Container):
     # Class‐level repository reference (set during app startup)
@@ -12,6 +12,10 @@ class BaseContainer(Container):
 
     # Class variables
     random_names = random_names
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        CLASS_REGISTRY[cls.__name__] = cls
 
     @classmethod
     def get_container_names_from_db(cls) -> List[str]:
@@ -127,3 +131,62 @@ class BaseContainer(Container):
 
             # Add the parent with the sibling's position
             parent.containers.append((self, position))
+
+    def serialize_node_info(self):
+        """Serialize this container for MongoDB nodes collection."""
+        if not self.getValue("id"):
+            cid = self.assign_id()
+            self.setValue("id", cid)
+
+        # serialize values
+        values = {}
+        for k, v in self.values.items():
+            if isinstance(v, (datetime.date, datetime.datetime)):
+                values[k] = v.isoformat()
+            else:
+                values[k] = v
+
+        # normal edges
+        edges = [{"to": child.getValue("id"), "position": pos} for child, pos in self.containers]
+
+        # add any pending edges (may include unmatched references)
+        if getattr(self, "_pending_edges", None):
+            edges.extend(self._pending_edges)
+
+        return {
+            "_id": self.getValue("id"),
+            "type": self.__class__.__name__,
+            "values": values,
+            "containers": edges,
+        }
+
+    @classmethod
+    def deserialize_node_info(cls, doc: dict):
+        """
+        Rebuild a container from a MongoDB node doc.
+        The correct subclass is chosen from doc["type"].
+        Edges are left in _pending_edges for rehydration later.
+        """
+        # choose correct subclass if available
+        type_name = doc.get("type", cls.__name__)
+        container_cls = CLASS_REGISTRY.get(type_name, cls)
+
+        inst = container_cls()
+
+        # restore values
+        for k, v in doc.get("values", {}).items():
+            if isinstance(v, str) and k in ("StartDate", "EndDate"):
+                try:
+                    inst.setValue(k, datetime.datetime.fromisoformat(v))
+                except ValueError:
+                    try:
+                        inst.setValue(k, datetime.date.fromisoformat(v))
+                    except Exception:
+                        inst.setValue(k, v)
+            else:
+                inst.setValue(k, v)
+
+        # stash edges for re-link pass
+        inst._pending_edges = doc.get("containers", [])
+
+        return inst

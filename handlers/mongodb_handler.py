@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from typing import List, Any, Dict, Optional
 from bson import Binary
 from handlers.repository_handler import ContainerRepository
+from containers.baseContainer import BaseContainer
 
 # Resolve base and project directories
 if getattr(sys, "frozen", False):
@@ -75,31 +76,41 @@ class MongoContainerRepository(ContainerRepository):
 
         docs = list(self.NODES.find({"_id": {"$in": node_ids}}))
 
+        # deserialize each node
         id_map, containers = {}, []
         for d in docs:
-            inst = self.container_class.deserialize_node_info(d)
+            inst = BaseContainer.deserialize_node_info(d)
             id_map[d["_id"]] = inst
             containers.append(inst)
 
-        # rehydrate edges among loaded nodes
-        for inst in containers:
+        # build id map from all instantiated containers (important for imports)
+        full_id_map = {c.getValue("id"): c for c in BaseContainer.instances}
+
+        # rehydrate edges among all loaded containers
+        for inst in BaseContainer.instances:
+            unmatched = []
             for edge in getattr(inst, "_pending_edges", []):
-                tgt = id_map.get(edge["to"])
+                tgt = full_id_map.get(edge["to"])
                 if tgt:
                     inst.setPosition(tgt, edge["position"])
-            if hasattr(inst, "_pending_edges"):
-                del inst._pending_edges
+                else:
+                    unmatched.append(edge)
+
+            # keep only unmatched edges
+            inst._pending_edges = unmatched if unmatched else []
 
         return containers
 
     def save_project(self, name: str, containers: List[Any]) -> None:
-        # save nodes individually
+        """Save a project and its nodes into MongoDB."""
         ops = []
         proj_nodes = []
+
         for c in containers:
             doc = c.serialize_node_info()
             ops.append(UpdateOne({"_id": doc["_id"]}, {"$set": doc}, upsert=True))
             proj_nodes.append({"id": doc["_id"], "Name": doc["values"].get("Name")})
+
         if ops:
             self.NODES.bulk_write(ops, ordered=False)
 
