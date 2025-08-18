@@ -33,17 +33,18 @@ class ProjectContainer(ConceptContainer):
     def set_min_max_dates(self):
         min_date = None
         max_date = None
-        for container in self.containers:
-            start_date = container[0].getValue("StartDate")
-            end_date = container[0].getValue("EndDate")
-            if start_date is not None:
-                if min_date is None or start_date < min_date:
-                    min_date = start_date
-                    self.setValue("StartDate", min_date)
-            if end_date is not None:
-                if max_date is None or end_date > max_date:
-                    max_date = end_date
-                    self.setValue("EndDate", max_date)
+        for container_tuple in self.containers:
+            subcontainer = container_tuple[0]
+            start_date = subcontainer.getValue("StartDate")
+            end_date = subcontainer.getValue("EndDate")
+            if start_date is not None and (min_date is None or start_date < min_date):
+                min_date = start_date
+            if end_date is not None and (max_date is None or end_date > max_date):
+                max_date = end_date
+        if min_date is not None:
+            self.setValue("StartDate", min_date)
+        if max_date is not None:
+            self.setValue("EndDate", max_date)
         return min_date, max_date
 
     def update_data(self, field, new_value, selected_index, container, parent_container):
@@ -86,54 +87,45 @@ class ProjectContainer(ConceptContainer):
     def exportGantt(self):
 
         def get_latest_ending_subcontainer(container):
-            subcontainers = container.containers
-            if not subcontainers:
-                return None
-
-            validcontainers = [
-                subcontainer for subcontainer in subcontainers if subcontainer[0].getValue("EndDate") is not None
-            ]
-
-            if not validcontainers:
-                return None
-            containerset = max(
-                validcontainers,
-                key=lambda subcontainer: subcontainer[0].getValue("EndDate"),
-            )
-            latest = containerset[0]
-            if latest is None:
-                return None
+            latest = None
+            latest_end = None
+            for subtuple in container.containers:
+                sub = subtuple[0]
+                end = sub.getValue("EndDate")
+                if end is None:
+                    continue
+                if latest_end is None or end > latest_end:
+                    latest = sub
+                    latest_end = end
             return latest
 
         def add_section(container):
-            exporter.add_section(container.getValue("Name"))
+            container_name = container.getValue("Name")
+            exporter.add_section(container_name)
             for subcontainertuple in container.containers:
                 subcontainer = subcontainertuple[0]
                 start_date = subcontainer.getValue("StartDate")
                 end_date = subcontainer.getValue("EndDate")
+                name = subcontainer.getValue("Name")
                 subcontainer_id = subcontainer.getValue("id") or subcontainer.assign_id()
                 if start_date is None or end_date is None:
                     continue
                 duration = end_date - start_date
 
+                dependency = None
                 if subcontainer.containers:
                     latest = get_latest_ending_subcontainer(subcontainer)
-                    if latest is None:
-                        dependency = None
-                    else:
+                    if latest:
                         dependency = latest.getValue("Name")
-                else:
-                    dependency = None
 
-                if subcontainer.getValue("StartDate") and subcontainer.getValue("EndDate"):
-                    exporter.add_task(
-                        container.getValue("Name"),
-                        subcontainer.getValue("Name"),
-                        start_date=start_date,
-                        duration=duration,
-                        dependency=dependency if dependency else None,
-                        id=subcontainer_id,
-                    )
+                exporter.add_task(
+                    container_name,
+                    name,
+                    start_date=start_date,
+                    duration=duration,
+                    dependency=dependency,
+                    id=subcontainer_id,
+                )
 
         exporter = MermaidGanttExporter()
         exporter.set_title(f"Gantt Diagram for {self.getValue("Name")}")

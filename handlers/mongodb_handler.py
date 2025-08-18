@@ -57,8 +57,7 @@ class MongoContainerRepository(ContainerRepository):
 
     def list_project_names(self) -> List[str]:
         """Return all distinct project names in the collection."""
-        cursor = self.COLL.find({}, {"name": 1, "_id": 0})
-        return [doc["name"] for doc in cursor]
+        return list(self.COLL.distinct("name"))
 
     def load_project(self, name: str) -> List[Any]:
         """Load and return the full container list for the given project."""
