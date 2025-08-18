@@ -2,7 +2,7 @@ import os
 import sys
 import pickle
 import json
-from pymongo import MongoClient
+from pymongo import MongoClient, UpdateOne
 from dotenv import load_dotenv
 from typing import List, Any, Dict, Optional
 from bson import Binary
@@ -51,54 +51,66 @@ print("✅ Connected to MongoDB.")
 
 
 class MongoContainerRepository(ContainerRepository):
-    """MongoDB implementation of ContainerRepository using the `collections` collection."""
-
+    NODES = db["nodes"]
     COLL = db["collections"]
 
     def list_project_names(self) -> List[str]:
-        """Return all distinct project names in the collection."""
         return list(self.COLL.distinct("name"))
 
     def load_project(self, name: str) -> List[Any]:
-        """Load and return the full container list for the given project."""
-        doc = self.COLL.find_one({"name": name})
-        if not doc:
+        proj = self.COLL.find_one({"name": name})
+        if not proj:
             raise KeyError(f"No project named {name}")
-        return pickle.loads(doc["data"])
+
+        # --- Backward compatibility path ---
+        if "data" in proj:
+            # existing pickled blob
+            blob = bytes(proj["data"])
+            containers = pickle.loads(zlib.decompress(blob))
+            return containers
+
+        # --- New nodes-based path ---
+        node_ids = [n["id"] for n in proj.get("nodes", [])]
+        docs = list(self.NODES.find({"_id": {"$in": node_ids}}))
+
+        id_map = {}
+        containers = []
+        for doc in docs:
+            inst = self.container_class.deserialize_node_info(doc)
+            id_map[doc["_id"]] = inst
+            containers.append(inst)
+
+        # rehydrate edges
+        for inst in containers:
+            for edge in getattr(inst, "_pending_edges", []):
+                tgt = id_map.get(edge["to"])
+                if tgt:
+                    inst.setPosition(tgt, edge["position"])
+            if hasattr(inst, "_pending_edges"):
+                del inst._pending_edges
+        return containers
 
     def save_project(self, name: str, containers: List[Any]) -> None:
-        """Serialize and persist the list of containers under the given project name."""
-        blob = pickle.dumps(containers)
+        # save nodes individually
+        ops = []
+        proj_nodes = []
+        for c in containers:
+            doc = c.serialize_node_info()
+            ops.append(UpdateOne({"_id": doc["_id"]}, {"$set": doc}, upsert=True))
+            proj_nodes.append({"id": doc["_id"], "Name": doc["values"].get("Name")})
+        if ops:
+            self.NODES.bulk_write(ops, ordered=False)
+
+        # update project document with membership list
         self.COLL.update_one(
             {"name": name},
-            {"$set": {"data": Binary(blob)}},
+            {"$set": {"nodes": proj_nodes}},
             upsert=True,
         )
 
     def delete_project(self, name: str) -> bool:
-        """Delete a project by name. Returns True if successful, False otherwise."""
-        try:
-            # First save backup
-            backup = self.COLL.find_one({"name": name})
-            if not backup:
-                print(f"⚠️ No project found to backup: {name}")
-                return False
-            # Save backup to the same collection replacing previous backup
-            self.COLL.update_one(
-                {"name": f"{name}_backup"},
-                {"$set": {"data": backup["data"]}},
-                upsert=True,
-            )
-
-            result = self.COLL.delete_one({"name": name})
-            if result.deleted_count == 0:
-                print(f"⚠️ No document found for project: {name}")
-                return False
-            print(f"✅ Deleted project document: {name}")
-            return True
-        except Exception as e:
-            print(f"❌ Error deleting project document {name}: {e}")
-            return False
+        result = self.COLL.delete_one({"name": name})
+        return result.deleted_count > 0
 
     def save_transition_metadata(self, metadata: Dict[str, Any]) -> None:
         """Save transition metadata to MongoDB."""
