@@ -124,7 +124,9 @@ class ContainerAIMixin:
         for cid in container_ids:
             inst = self.container_class.get_instance_by_id(cid)
             if inst:
-                containers.append(inst)
+                # Only add if inst has not parents
+                if not inst.getParents():
+                    containers.append(inst)
 
         if not containers:
             return jsonify({"message": "None of the provided IDs matched existing containers"}), 404
