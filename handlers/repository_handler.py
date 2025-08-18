@@ -3,6 +3,10 @@ from typing import List, Any, Dict, Optional
 
 
 class ContainerRepository(ABC):
+    @abstractmethod
+    def load_node(self, node_id: Any) -> Optional[Any]:
+        """Load an individual node document by its id and return the deserialized container instance."""
+        pass
     """Abstract interface for persisting ConceptContainer instances."""
 
     @abstractmethod

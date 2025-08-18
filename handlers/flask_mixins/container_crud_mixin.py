@@ -28,6 +28,21 @@ class ContainerCRUDMixin:
         self.app.add_url_rule(
             "/calculate_state_scores", "calculate_state_scores", self.calculate_state_scores, methods=["POST"]
         )
+        # Add route for loading a single node from the repository
+        self.app.add_url_rule("/load_node/<id>", "load_node", self.load_node, methods=["GET"])
+
+    def load_node(self, id):
+        """API endpoint to load a single node from the repository by its id."""
+        try:
+            node = self.repository.load_node(id)
+            if node:
+                export = self.serialize_container_info([node])
+                return jsonify({"containers": export})
+            else:
+                return jsonify({"message": "Node not found"}), 404
+        except Exception as e:
+            logging.error(f"Error loading node {id}: {e}")
+            return jsonify({"message": "Error loading node", "error": str(e)}), 500
 
     def compare_states(self):
         """Compare two arbitrary states for provided containers, without switching active state."""

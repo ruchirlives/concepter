@@ -55,6 +55,15 @@ class MongoContainerRepository(ContainerRepository):
     NODES = db["nodes"]
     COLL = db["collections"]
 
+    def load_node(self, node_id: Any) -> Optional[BaseContainer]:
+        """Load an individual node document by its id and deserialize it into a BaseContainer instance."""
+        doc = self.NODES.find_one({"_id": node_id})
+        if not doc:
+            print(f"⚠️ No node found with id: {node_id}")
+            return None
+        inst = BaseContainer.deserialize_node_info(doc)
+        return inst
+
     def list_project_names(self) -> List[str]:
         return list(self.COLL.distinct("name"))
 
