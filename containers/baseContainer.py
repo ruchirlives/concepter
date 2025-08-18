@@ -28,12 +28,14 @@ class BaseContainer(Container):
     def load_project_from_db(cls, project_name: str) -> str:
         if cls.repository is None:
             raise RuntimeError("ContainerRepository not configured")
+        # Clear all in-memory instances before loading new project
+        baseTools.instances.clear()
         baseTools.instances = cls.repository.load_project(project_name)
 
         # remove the shadow on every direct subclass
-        for cls in baseTools.__subclasses__():
-            if "instances" in cls.__dict__:
-                delattr(cls, "instances")
+        for subcls in baseTools.__subclasses__():
+            if "instances" in subcls.__dict__:
+                delattr(subcls, "instances")
         return "WORKED"
 
     @classmethod
