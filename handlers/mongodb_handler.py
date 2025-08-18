@@ -58,29 +58,30 @@ class MongoContainerRepository(ContainerRepository):
         return list(self.COLL.distinct("name"))
 
     def load_project(self, name: str) -> List[Any]:
-        proj = self.COLL.find_one({"name": name})
-        if not proj:
+        """Load and return the full container list for the given project.
+        Supports both legacy pickled format and new nodes-based format."""
+        doc = self.COLL.find_one({"name": name})
+        if not doc:
             raise KeyError(f"No project named {name}")
 
-        # --- Backward compatibility path ---
-        if "data" in proj:
-            # existing pickled blob
-            blob = bytes(proj["data"])
-            containers = pickle.loads(zlib.decompress(blob))
-            return containers
+        # --- Legacy path (pickled blob) ---
+        if "data" in doc:
+            return pickle.loads(doc["data"])
 
-        # --- New nodes-based path ---
-        node_ids = [n["id"] for n in proj.get("nodes", [])]
+        # --- New path (nodes reference) ---
+        node_ids = [n["id"] for n in doc.get("nodes", [])]
+        if not node_ids:
+            return []
+
         docs = list(self.NODES.find({"_id": {"$in": node_ids}}))
 
-        id_map = {}
-        containers = []
-        for doc in docs:
-            inst = self.container_class.deserialize_node_info(doc)
-            id_map[doc["_id"]] = inst
+        id_map, containers = {}, []
+        for d in docs:
+            inst = self.container_class.deserialize_node_info(d)
+            id_map[d["_id"]] = inst
             containers.append(inst)
 
-        # rehydrate edges
+        # rehydrate edges among loaded nodes
         for inst in containers:
             for edge in getattr(inst, "_pending_edges", []):
                 tgt = id_map.get(edge["to"])
@@ -88,6 +89,7 @@ class MongoContainerRepository(ContainerRepository):
                     inst.setPosition(tgt, edge["position"])
             if hasattr(inst, "_pending_edges"):
                 del inst._pending_edges
+
         return containers
 
     def save_project(self, name: str, containers: List[Any]) -> None:
