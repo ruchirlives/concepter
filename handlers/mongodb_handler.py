@@ -53,6 +53,40 @@ print("✅ Connected to MongoDB.")
 
 class MongoContainerRepository(ContainerRepository):
     @staticmethod
+    def merge_unique_field(all_nodes, field_path, field_type="list"):
+        """
+        Merge unique items from a list field or merge dicts across all nodes.
+        field_path: list of keys to traverse, e.g., ["values", "Tags"]
+        field_type: "list" or "dict"
+        Returns a list of unique items or a merged dict.
+        """
+        if field_type == "list":
+            merged = []
+            seen = set()
+            for node in all_nodes:
+                val = node
+                for key in field_path:
+                    val = val.get(key, {}) if isinstance(val, dict) else {}
+                if isinstance(val, list):
+                    for item in val:
+                        item_tuple = tuple(sorted(item.items())) if isinstance(item, dict) else tuple([item])
+                        if item_tuple not in seen:
+                            merged.append(item)
+                            seen.add(item_tuple)
+            return merged
+        elif field_type == "dict":
+            merged = {}
+            for node in all_nodes:
+                val = node
+                for key in field_path:
+                    val = val.get(key, {}) if isinstance(val, dict) else {}
+                if isinstance(val, dict):
+                    merged.update(val)
+            return merged
+        else:
+            return None
+
+    @staticmethod
     def rehydrate_edges_for_containers(containers: list):
         """Rehydrate edges among all loaded containers (for both single and multiple loads)."""
         # Build id map from all instantiated containers (important for imports)
@@ -100,19 +134,78 @@ class MongoContainerRepository(ContainerRepository):
             children = []
             try:
                 for child in doc.get("containers", []):
-                    children.append({
-                        "id": child.get("to"),
-                        "Name": child.get("Name"),
-                        "position": child.get("position")
-                    })
+                    children.append(
+                        {"id": child.get("to"), "Name": child.get("Name"), "position": child.get("position")}
+                    )
             except Exception as e:
                 print(f"❌ Error processing child containers: {e}")
-            results.append({
-                "id": doc["_id"],
-                "Name": doc.get("values", {}).get("Name"),
-                "children": children
-            })
+            results.append({"id": doc["_id"], "Name": doc.get("values", {}).get("Name"), "children": children})
         return results
+
+    def deduplicate_nodes(self) -> None:
+        """Remove duplicate nodes from the database."""
+        pipeline = [
+            {
+                "$group": {
+                    "_id": "$values.Name",
+                    "uniqueIds": {"$addToSet": "$_id"},
+                    "count": {"$sum": 1}
+                }
+            },
+            {
+                "$match": {"count": {"$gt": 1}}
+            }
+        ]
+
+        duplicates = list(self.NODES.aggregate(pipeline))
+        total_removed = 0
+        for dup in duplicates:
+            # Fetch all duplicate node docs
+            all_nodes = list(self.NODES.find({"_id": {"$in": dup["uniqueIds"]}}))
+            # If any node is type BudgetContainer, skip this group
+            if any(node.get("type") == "BudgetContainer" for node in all_nodes):
+                print(f"⏭️ Skipping deduplication for nodes with name: {dup['_id']} (BudgetContainer present)")
+                continue
+
+            print(f"⚠️ Found duplicate nodes for name: {dup['_id']}")
+            keep_id = dup["uniqueIds"][0]
+            remove_ids = dup["uniqueIds"][1:]
+
+            # Merge containers
+            merged_containers = self.merge_unique_field(all_nodes, ["containers"], field_type="list")
+            # Merge values.Tags
+            merged_tags = self.merge_unique_field(all_nodes, ["values", "Tags"], field_type="list")
+            # Merge values.allStates (dict)
+            merged_states = self.merge_unique_field(all_nodes, ["values", "allStates"], field_type="dict")
+
+            # Prepare update dict
+            update_dict = {"containers": merged_containers}
+            if merged_tags:
+                update_dict["values.Tags"] = merged_tags
+            if merged_states:
+                update_dict["values.allStates"] = merged_states
+
+            # Use $set with dot notation for nested fields
+            self.NODES.update_one({"_id": keep_id}, {"$set": update_dict})
+
+            # Sweep all nodes to update containers.to references
+            for old_id in remove_ids:
+                # Find all nodes where containers.to == old_id
+                cursor = self.NODES.find({"containers.to": old_id})
+                for node in cursor:
+                    updated = False
+                    containers = node.get("containers", [])
+                    for c in containers:
+                        if c.get("to") == old_id:
+                            c["to"] = keep_id
+                            updated = True
+                    if updated:
+                        self.NODES.update_one({"_id": node["_id"]}, {"$set": {"containers": containers}})
+
+            result = self.NODES.delete_many({"_id": {"$in": remove_ids}})
+            total_removed += result.deleted_count
+            print(f"✅ Removed duplicate nodes: {remove_ids} and merged containers, tags, allStates into {keep_id}")
+        return total_removed
 
     def list_project_names(self) -> List[str]:
         return list(self.COLL.distinct("name"))

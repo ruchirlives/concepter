@@ -117,8 +117,13 @@ class ContainerTaskMixin:
         """Request deduplication of containers."""
         from container_base import baseTools
 
+        # First deduplicate inside the project
         baseTools.deduplicate_all()
-        return jsonify({"message": "Deduplication requested successfully"})
+
+        # Then deduplicate the nodes database
+        total_removed = self.container_class.deduplicate_nodes()
+
+        return jsonify({"message": "Deduplication requested successfully", "total_removed": total_removed})
 
     def recopy_values(self):
         """Request recopying of container values."""

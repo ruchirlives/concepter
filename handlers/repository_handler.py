@@ -15,6 +15,11 @@ class ContainerRepository(ABC):
         pass
 
     @abstractmethod
+    def deduplicate_nodes(self) -> None:
+        """Remove duplicate nodes from the database."""
+        pass
+
+    @abstractmethod
     def list_project_names(self) -> List[str]:
         """Return a list of all project names."""
         pass

@@ -122,6 +122,13 @@ class BaseContainer(Container):
 
     # Add and remove container by id methods
 
+    @classmethod
+    def deduplicate_nodes(cls):
+        """Deduplicate nodes in the database."""
+        if cls.repository is None:
+            raise RuntimeError("ContainerRepository not configured")
+        return cls.repository.deduplicate_nodes()
+
     def add_container_by_id(self, container_id: str, relationship: dict):
         """
         Add a container by its ID.
