@@ -46,7 +46,8 @@ class ContainerSerializationMixin:
                 item[key] = value
 
             # If pending edges exist, include them in the export
-            if container._pending_edges:
+            # if container._pending_edges:
+            if hasattr(container, "_pending_edges") and container._pending_edges:
                 item["PendingEdges"] = container._pending_edges
 
             export.append(item)

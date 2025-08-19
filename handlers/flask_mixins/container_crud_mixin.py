@@ -28,8 +28,23 @@ class ContainerCRUDMixin:
         self.app.add_url_rule(
             "/calculate_state_scores", "calculate_state_scores", self.calculate_state_scores, methods=["POST"]
         )
-        # Add route for loading a single node from the repository
+        # Add route for nodes
         self.app.add_url_rule("/load_node", "load_node", self.load_node, methods=["POST"])
+        self.app.add_url_rule("/search_nodes", "search_nodes", self.search_nodes, methods=["POST"])
+
+    def search_nodes(self):
+        """API endpoint to search nodes by a search term."""
+        try:
+            data = request.get_json()
+            search_term = data.get("search_term")
+            if not search_term:
+                return jsonify({"message": "No search_term provided"}), 400
+            # Assumes self.container_class has a search_nodes method, or adapt as needed
+            results = self.container_class.search_nodes(search_term)
+            return jsonify({"results": results})
+        except Exception as e:
+            logging.error(f"Error searching nodes: {e}")
+            return jsonify({"message": "Error searching nodes", "error": str(e)}), 500
 
     def load_node(self):
         """API endpoint to load a single node from the repository by its id."""

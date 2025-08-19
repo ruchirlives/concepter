@@ -90,12 +90,29 @@ class MongoContainerRepository(ContainerRepository):
         return inst
 
     def search_nodes(self, search_term: str) -> List[Dict[str, Any]]:
-        """Return nodes matching the search term with their id and Name."""
+        """Return nodes matching the search term with their id, Name, and children info if present."""
         cursor = self.NODES.find(
             {"values.Name": {"$regex": search_term, "$options": "i"}},
-            {"_id": 1, "values.Name": 1},
+            {"_id": 1, "values.Name": 1, "containers": 1},
         )
-        return [{"id": doc["_id"], "Name": doc.get("values", {}).get("Name")} for doc in cursor]
+        results = []
+        for doc in cursor:
+            children = []
+            try:
+                for child in doc.get("containers", []):
+                    children.append({
+                        "id": child.get("to"),
+                        "Name": child.get("Name"),
+                        "position": child.get("position")
+                    })
+            except Exception as e:
+                print(f"❌ Error processing child containers: {e}")
+            results.append({
+                "id": doc["_id"],
+                "Name": doc.get("values", {}).get("Name"),
+                "children": children
+            })
+        return results
 
     def list_project_names(self) -> List[str]:
         return list(self.COLL.distinct("name"))

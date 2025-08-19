@@ -40,9 +40,20 @@ class BaseContainer(Container):
 
     @classmethod
     def load_node(cls, node_id: Any):
+        # First check we don't already have node_id in baseTools.instances
+        existing_instance = baseTools.get_instance_by_id(node_id)
+        if existing_instance:
+            return existing_instance
+
         if cls.repository is None:
             raise RuntimeError("ContainerRepository not configured")
         return cls.repository.load_node(node_id)
+
+    @classmethod
+    def search_nodes(cls, search_term: str) -> List[dict]:
+        if cls.repository is None:
+            raise RuntimeError("ContainerRepository not configured")
+        return cls.repository.search_nodes(search_term)
 
     @classmethod
     def import_containers(cls, project_name: str) -> str:
