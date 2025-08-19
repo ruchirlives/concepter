@@ -18,11 +18,11 @@ class BaseContainer(Container):
         super().__init_subclass__(**kwargs)
         CLASS_REGISTRY[cls.__name__] = cls
 
-    @classmethod
-    def get_container_names_from_db(cls) -> List[str]:
-        if cls.repository is None:
-            raise RuntimeError("ContainerRepository not configured")
-        return cls.repository.list_project_names()
+    # @classmethod
+    # def get_container_names_from_db(cls) -> List[str]:
+    #     if cls.repository is None:
+    #         raise RuntimeError("ContainerRepository not configured")
+    #     return cls.repository.list_project_names()
 
     @classmethod
     def load_project_from_db(cls, project_name: str) -> str:
@@ -38,22 +38,22 @@ class BaseContainer(Container):
                 delattr(subcls, "instances")
         return "WORKED"
 
-    @classmethod
-    def load_node(cls, node_id: Any):
-        # First check we don't already have node_id in baseTools.instances
-        existing_instance = baseTools.get_instance_by_id(node_id)
-        if existing_instance:
-            return existing_instance
+    # @classmethod
+    # def load_node(cls, node_id: Any):
+    #     # First check we don't already have node_id in baseTools.instances
+    #     existing_instance = baseTools.get_instance_by_id(node_id)
+    #     if existing_instance:
+    #         return existing_instance
 
-        if cls.repository is None:
-            raise RuntimeError("ContainerRepository not configured")
-        return cls.repository.load_node(node_id)
+    #     if cls.repository is None:
+    #         raise RuntimeError("ContainerRepository not configured")
+    #     return cls.repository.load_node(node_id)
 
-    @classmethod
-    def search_nodes(cls, search_term: str) -> List[dict]:
-        if cls.repository is None:
-            raise RuntimeError("ContainerRepository not configured")
-        return cls.repository.search_nodes(search_term)
+    # @classmethod
+    # def search_nodes(cls, search_term: str) -> List[dict]:
+    #     if cls.repository is None:
+    #         raise RuntimeError("ContainerRepository not configured")
+    #     return cls.repository.search_nodes(search_term)
 
     @classmethod
     def import_containers(cls, project_name: str) -> str:
@@ -61,14 +61,6 @@ class BaseContainer(Container):
         if cls.repository is None:
             raise RuntimeError("ContainerRepository not configured")
         new_instances = cls.repository.load_project(project_name)
-        # for instance in new_instances:
-        #     # Check if instance is already in baseTools, and if so rewire its parents and children to the new instance
-        #     # then remove the old one
-        #     existing_instance = baseTools.get_instance_by_id(instance.getValue("id"))
-        #     if existing_instance:
-        #         existing_instance.rewire(instance, new_instances)
-        #         existing_instance.delete()
-        # Remove duplicates, keeping the newly imported ones (default behavior)
         baseTools.instances.extend(new_instances)
         return "WORKED"
 
@@ -122,12 +114,12 @@ class BaseContainer(Container):
 
     # Add and remove container by id methods
 
-    @classmethod
-    def deduplicate_nodes(cls):
-        """Deduplicate nodes in the database."""
-        if cls.repository is None:
-            raise RuntimeError("ContainerRepository not configured")
-        return cls.repository.deduplicate_nodes()
+    # @classmethod
+    # def deduplicate_nodes(cls):
+    #     """Deduplicate nodes in the database."""
+    #     if cls.repository is None:
+    #         raise RuntimeError("ContainerRepository not configured")
+    #     return cls.repository.deduplicate_nodes()
 
     def add_container_by_id(self, container_id: str, relationship: dict):
         """

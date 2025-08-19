@@ -93,7 +93,7 @@ class ContainerPersistenceMixin:
 
     def get_loadable_containers(self):
         """Return all loadable container projects."""
-        containers = self.container_class.get_container_names_from_db()
+        containers = self.container_class.repository.list_project_names()
         return jsonify({"containers": containers})
 
     def delete_project(self):

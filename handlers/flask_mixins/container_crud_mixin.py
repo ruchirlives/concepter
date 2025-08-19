@@ -40,7 +40,7 @@ class ContainerCRUDMixin:
             if not search_term:
                 return jsonify({"message": "No search_term provided"}), 400
             # Assumes self.container_class has a search_nodes method, or adapt as needed
-            results = self.container_class.search_nodes(search_term)
+            results = self.container_class.repository.search_nodes(search_term)
             return jsonify({"results": results})
         except Exception as e:
             logging.error(f"Error searching nodes: {e}")
@@ -51,7 +51,13 @@ class ContainerCRUDMixin:
         try:
             data = request.get_json()
             node_id = data.get("id")
-            node = self.container_class.load_node(node_id)
+
+            existing_instance = self.container_class.get_instance_by_id(node_id)
+            if existing_instance:
+                node = existing_instance
+            else:
+                node = self.container_class.repository.load_node(node_id)
+
             if node:
                 export = self.serialize_container_info([node])
                 return jsonify({"containers": export})

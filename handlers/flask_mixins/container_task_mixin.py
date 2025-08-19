@@ -121,7 +121,7 @@ class ContainerTaskMixin:
         baseTools.deduplicate_all()
 
         # Then deduplicate the nodes database
-        total_removed = self.container_class.deduplicate_nodes()
+        total_removed = self.container_class.repository.deduplicate_nodes()
 
         return jsonify({"message": "Deduplication requested successfully", "total_removed": total_removed})
 
