@@ -141,6 +141,8 @@ class MongoContainerRepository(ContainerRepository):
         return inst
 
     def search_nodes(self, search_term: str, tags: List[str] = []) -> List[Dict[str, Any]]:
+        if not search_term and not tags:
+            return []
         """Return nodes matching the search term with their id, Name, and children info if present."""
         query = {"values.Name": {"$regex": search_term, "$options": "i"}}
         if tags:
