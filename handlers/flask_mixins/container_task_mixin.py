@@ -31,6 +31,8 @@ class ContainerTaskMixin:
         # request_dedup
         self.app.add_url_rule("/request_dedup", "request_dedup", self.request_dedup, methods=["GET"])
         self.app.add_url_rule("/recopy_values", "recopy_values", self.recopy_values, methods=["GET"])
+        # request_rekey
+        self.app.add_url_rule("/request_rekey", "request_rekey", self.request_rekey, methods=["GET"])
 
     def add_finance_container(self):
         """Add a finance container."""
