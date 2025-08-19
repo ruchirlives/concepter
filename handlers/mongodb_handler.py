@@ -154,7 +154,7 @@ class MongoContainerRepository(ContainerRepository):
         cursor = self.NODES.find(
             query,
             {"_id": 1, "values.Name": 1, "containers": 1},
-        )
+        ).limit(60)
         results = []
         for doc in cursor:
             children = []
