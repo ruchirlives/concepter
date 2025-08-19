@@ -59,8 +59,12 @@ class MongoContainerRepository(ContainerRepository):
         field_path: list of keys to traverse, e.g., ["values", "Tags"]
         field_type: "list" or "dict"
         Returns a list of unique items or a merged dict.
+        For tags, strips whitespace and filters out empty strings, dedupes case-insensitively.
         """
+        # Special handling for tags
+        is_tags = field_path == ["values", "Tags"]
         if field_type == "list":
+            import json
             merged = []
             seen = set()
             for node in all_nodes:
@@ -69,10 +73,23 @@ class MongoContainerRepository(ContainerRepository):
                     val = val.get(key, {}) if isinstance(val, dict) else {}
                 if isinstance(val, list):
                     for item in val:
-                        item_tuple = tuple(sorted(item.items())) if isinstance(item, dict) else tuple([item])
-                        if item_tuple not in seen:
-                            merged.append(item)
-                            seen.add(item_tuple)
+                        if is_tags and isinstance(item, str):
+                            tag = item.strip()
+                            if not tag:
+                                continue
+                            tag_key = tag.lower()  # dedupe case-insensitive
+                            if tag_key not in seen:
+                                merged.append(tag)
+                                seen.add(tag_key)
+                        else:
+                            # Use json.dumps to hash dicts/lists robustly
+                            try:
+                                item_key = json.dumps(item, sort_keys=True)
+                            except Exception:
+                                item_key = str(item)
+                            if item_key not in seen:
+                                merged.append(item)
+                                seen.add(item_key)
             return merged
         elif field_type == "dict":
             merged = {}
