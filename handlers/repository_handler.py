@@ -10,7 +10,7 @@ class ContainerRepository(ABC):
     """Abstract interface for persisting ConceptContainer instances."""
 
     @abstractmethod
-    def search_nodes(self, search_term: str) -> List[Dict[str, Any]]:
+    def search_nodes(self, search_term: str, tags: List[str]) -> List[Dict[str, Any]]:
         """Search nodes by a case-insensitive term and return id and Name fields."""
         pass
 

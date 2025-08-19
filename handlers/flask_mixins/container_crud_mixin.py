@@ -37,10 +37,11 @@ class ContainerCRUDMixin:
         try:
             data = request.get_json()
             search_term = data.get("search_term")
+            tags_to_match = data.get("tags", [])
             if not search_term:
                 return jsonify({"message": "No search_term provided"}), 400
             # Assumes self.container_class has a search_nodes method, or adapt as needed
-            results = self.container_class.repository.search_nodes(search_term)
+            results = self.container_class.repository.search_nodes(search_term, tags=tags_to_match)
             return jsonify({"results": results})
         except Exception as e:
             logging.error(f"Error searching nodes: {e}")
