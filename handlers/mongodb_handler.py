@@ -89,6 +89,14 @@ class MongoContainerRepository(ContainerRepository):
         # refresh
         return inst
 
+    def search_nodes(self, search_term: str) -> List[Dict[str, Any]]:
+        """Return nodes matching the search term with their id and Name."""
+        cursor = self.NODES.find(
+            {"values.Name": {"$regex": search_term, "$options": "i"}},
+            {"_id": 1, "values.Name": 1},
+        )
+        return [{"id": doc["_id"], "Name": doc.get("values", {}).get("Name")} for doc in cursor]
+
     def list_project_names(self) -> List[str]:
         return list(self.COLL.distinct("name"))
 

@@ -10,6 +10,11 @@ class ContainerRepository(ABC):
     """Abstract interface for persisting ConceptContainer instances."""
 
     @abstractmethod
+    def search_nodes(self, search_term: str) -> List[Dict[str, Any]]:
+        """Search nodes by a case-insensitive term and return id and Name fields."""
+        pass
+
+    @abstractmethod
     def list_project_names(self) -> List[str]:
         """Return a list of all project names."""
         pass
