@@ -16,7 +16,7 @@ class ContainerAIMixin:
         self.app.add_url_rule(
             "/categorize_containers", "categorize_containers", self.categorize_containers, methods=["POST"]
         )
-        self.app.add_url_rule("/embed_containers", "embed_containers", self.embed_containers, methods=["POST"])
+        self.app.add_url_rule("/embedContainers", "embed_containers", self.embed_containers, methods=["POST"])
         self.app.add_url_rule("/embed_positions", "embed_positions", self.embed_positions, methods=["POST"])
         self.app.add_url_rule("/add_similar", "add_similar", self.add_similar, methods=["POST"])
         self.app.add_url_rule("/join_similar", "join_similar", self.join_similar, methods=["POST"])
