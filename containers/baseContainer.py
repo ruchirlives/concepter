@@ -212,3 +212,17 @@ class BaseContainer(Container):
         inst._pending_edges = doc.get("containers", [])
 
         return inst
+
+    # Just remove from the project
+    @classmethod
+    def remove_container_from_project(cls, container_obj):
+        cls.instances.remove(container_obj)
+        # Append a reference to the deleted container to _pending_edges for its parent containers
+        for parent in container_obj.getParents():
+            edge = {
+                "to": container_obj.getValue("id"),
+                "position": parent.getPosition(container_obj),
+                "Name": container_obj.getValue("Name"),
+            }
+            parent._pending_edges.append(edge)
+            parent.remove_container(container_obj)
