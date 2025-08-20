@@ -212,7 +212,7 @@ class ContainerCRUDMixin:
         for containerId in containerIds:
             container = self.container_class.get_instance_by_id(containerId)
             if container:
-                self.container_class.remove_container_everywhere(container)
+                self.container_class.remove_container_from_project(container)
         return jsonify({"message": "Containers removed successfully"})
 
     def clear_containers(self):
