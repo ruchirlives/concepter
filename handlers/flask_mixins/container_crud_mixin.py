@@ -34,22 +34,6 @@ class ContainerCRUDMixin:
         self.app.add_url_rule("/load_node", "load_node", self.load_node, methods=["POST"])
         self.app.add_url_rule("/search_nodes", "search_nodes", self.search_nodes, methods=["POST"])
 
-    def remove_containers(self):
-        """API endpoint to remove containers from the project."""
-        try:
-            data = request.get_json()
-            container_ids = data.get("container_ids", [])
-            if not container_ids:
-                return jsonify({"message": "No container IDs provided."}), 400
-
-            for container_id in container_ids:
-                self.container_class.remove_container_from_project(container_id)
-
-            return jsonify({"message": "Containers removed successfully."})
-        except Exception as e:
-            logging.error(f"Error removing containers: {e}")
-            return jsonify({"message": "Error removing containers", "error": str(e)}), 500
-
     def search_nodes(self):
         """API endpoint to search nodes by a search term."""
         try:
@@ -220,6 +204,16 @@ class ContainerCRUDMixin:
             if container:
                 self.container_class.remove_container_everywhere(container)
         return jsonify({"message": "Containers deleted successfully"})
+
+    def remove_containers(self):
+        """Remove multiple containers by their IDs."""
+        data = request.get_json()
+        containerIds = data["containers"]
+        for containerId in containerIds:
+            container = self.container_class.get_instance_by_id(containerId)
+            if container:
+                self.container_class.remove_container_everywhere(container)
+        return jsonify({"message": "Containers removed successfully"})
 
     def clear_containers(self):
         """Clear all containers from memory."""
