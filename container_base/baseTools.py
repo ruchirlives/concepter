@@ -113,6 +113,11 @@ class baseTools:
         for container in cls.instances:
             container.remove_container(container_obj)
 
+    # Just remove from the project
+    @classmethod
+    def remove_container(cls, container_obj):
+        cls.instances.remove(container_obj)
+
     @classmethod
     def get_all_subcontainers(cls, container_id):
         container = cls.instances[container_id]

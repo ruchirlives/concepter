@@ -12,6 +12,8 @@ class ContainerCRUDMixin:
         self.app.add_url_rule("/create_container", "create_container", self.create_container, methods=["GET"])
         self.app.add_url_rule("/rename_container/<id>", "rename_container", self.rename_container, methods=["GET"])
         self.app.add_url_rule("/delete_containers", "delete_containers", self.delete_containers, methods=["POST"])
+        # remove containers from project
+        self.app.add_url_rule("/remove_containers", "remove_containers", self.remove_containers, methods=["POST"])
         self.app.add_url_rule("/join_containers", "join_containers", self.join_containers, methods=["POST"])
         self.app.add_url_rule("/clear_containers", "clear_containers", self.clear_containers, methods=["GET"])
         self.app.add_url_rule(
@@ -31,6 +33,22 @@ class ContainerCRUDMixin:
         # Add route for nodes
         self.app.add_url_rule("/load_node", "load_node", self.load_node, methods=["POST"])
         self.app.add_url_rule("/search_nodes", "search_nodes", self.search_nodes, methods=["POST"])
+
+    def remove_containers(self):
+        """API endpoint to remove containers from the project."""
+        try:
+            data = request.get_json()
+            container_ids = data.get("container_ids", [])
+            if not container_ids:
+                return jsonify({"message": "No container IDs provided."}), 400
+
+            for container_id in container_ids:
+                self.container_class.remove_instance(container_id)
+
+            return jsonify({"message": "Containers removed successfully."})
+        except Exception as e:
+            logging.error(f"Error removing containers: {e}")
+            return jsonify({"message": "Error removing containers", "error": str(e)}), 500
 
     def search_nodes(self):
         """API endpoint to search nodes by a search term."""
