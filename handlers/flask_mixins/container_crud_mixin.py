@@ -43,7 +43,7 @@ class ContainerCRUDMixin:
                 return jsonify({"message": "No container IDs provided."}), 400
 
             for container_id in container_ids:
-                self.container_class.remove_instance(container_id)
+                self.container_class.remove_container_from_project(container_id)
 
             return jsonify({"message": "Containers removed successfully."})
         except Exception as e:

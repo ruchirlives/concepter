@@ -115,7 +115,7 @@ class baseTools:
 
     # Just remove from the project
     @classmethod
-    def remove_container(cls, container_obj):
+    def remove_container_from_project(cls, container_obj):
         cls.instances.remove(container_obj)
 
     @classmethod
