@@ -18,12 +18,6 @@ class BaseContainer(Container):
         super().__init_subclass__(**kwargs)
         CLASS_REGISTRY[cls.__name__] = cls
 
-    # @classmethod
-    # def get_container_names_from_db(cls) -> List[str]:
-    #     if cls.repository is None:
-    #         raise RuntimeError("ContainerRepository not configured")
-    #     return cls.repository.list_project_names()
-
     @classmethod
     def load_project_from_db(cls, project_name: str) -> str:
         if cls.repository is None:
@@ -37,23 +31,6 @@ class BaseContainer(Container):
             if "instances" in subcls.__dict__:
                 delattr(subcls, "instances")
         return "WORKED"
-
-    # @classmethod
-    # def load_node(cls, node_id: Any):
-    #     # First check we don't already have node_id in baseTools.instances
-    #     existing_instance = baseTools.get_instance_by_id(node_id)
-    #     if existing_instance:
-    #         return existing_instance
-
-    #     if cls.repository is None:
-    #         raise RuntimeError("ContainerRepository not configured")
-    #     return cls.repository.load_node(node_id)
-
-    # @classmethod
-    # def search_nodes(cls, search_term: str) -> List[dict]:
-    #     if cls.repository is None:
-    #         raise RuntimeError("ContainerRepository not configured")
-    #     return cls.repository.search_nodes(search_term)
 
     @classmethod
     def import_containers(cls, project_name: str) -> str:
@@ -89,8 +66,8 @@ class BaseContainer(Container):
         if cls.repository is None:
             raise RuntimeError("ContainerRepository not configured")
         # Detach orphaned links for the subset if needed
-        for c in containers:
-            c.containers = [p for p in c.containers if p[0] in containers]
+        # for c in containers:
+        #     c.containers = [p for p in c.containers if p[0] in containers]
         cls.repository.save_project(project_name, containers)
         return "WORKED"
 
