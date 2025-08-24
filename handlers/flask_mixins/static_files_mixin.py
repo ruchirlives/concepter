@@ -22,19 +22,17 @@ class StaticFilesMixin:
             endpoint = rule.endpoint
             view_func = self.app.view_functions.get(endpoint)
             doc = view_func.__doc__ if view_func and view_func.__doc__ else ""
-            routes.append({
-                "rule": str(rule),
-                "endpoint": endpoint,
-                "doc": doc.strip()
-            })
+            routes.append({"rule": str(rule), "endpoint": endpoint, "doc": doc.strip()})
 
         # Tailwind CSS CDN
         tailwind = "<script src='https://cdn.tailwindcss.com'></script>"
         # Build HTML table
-        table_rows = "".join([
-            f"<tr class='border-b'><td class='px-4 py-2 font-mono'>{r['rule']}</td><td class='px-4 py-2'>{r['endpoint']}</td><td class='px-4 py-2'>{r['doc']}</td></tr>"
-            for r in routes
-        ])
+        table_rows = "".join(
+            [
+                f"<tr class='border-b'><td class='px-4 py-2 font-mono'>{r['rule']}</td><td class='px-4 py-2'>{r['endpoint']}</td><td class='px-4 py-2'>{r['doc']}</td></tr>"
+                for r in routes
+            ]
+        )
         html = f"""
         <!DOCTYPE html>
         <html lang='en'>
