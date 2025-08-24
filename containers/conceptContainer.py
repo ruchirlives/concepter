@@ -346,7 +346,7 @@ class ConceptContainer(BaseContainer, StateTools):
             "the subject and object above, taking into account the Context where available. "
             "Focus on what unites them, how they interact, or why their connection matters. "
             "Be concise but insightful. Return only the relationship label or phrase. "
-            "Present as a suggestion (e.g. Perhaps ...could, rather than an assertion or definite)"
+            "Always present this as a suggestion (e.g. Perhaps ...could or Have you considered ..., NOT an assertion)"
         )
         # Always provide both subject and object arguments
         subject_arg = prompt if context_lines else source_description
