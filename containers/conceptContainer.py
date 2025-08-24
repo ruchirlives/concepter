@@ -345,8 +345,8 @@ class ConceptContainer(BaseContainer, StateTools):
             "Your task: Propose a compelling, meaningful, and specific connection or relationship between "
             "the subject and object above, taking into account the Context where available. "
             "Focus on what unites them, how they interact, or why their connection matters. "
-            "Be concise but insightful. Return only the relationship label or phrase. Present as a suggestion "
-            "e.g. Perhaps...could, rather than an assertion"
+            "Be concise but insightful. Return only the relationship label or phrase. "
+            "Present as a suggestion (e.g. Perhaps ...could, rather than an assertion or definite)"
         )
         # Always provide both subject and object arguments
         subject_arg = prompt if context_lines else source_description
