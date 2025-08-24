@@ -342,11 +342,11 @@ class ConceptContainer(BaseContainer, StateTools):
             context_str = f"Context:\n{chr(10).join(context_lines)}\n\n"
         prompt = (
             f"{context_str}Subject: {source_description}\nObject: {target_description}\n\n"
-            "Your task: Propose a suggested meaningful, and specific relationship between "
-            "the subject and object above, taking into account the Context where available. "
-            "Focus on what unites them, how they might interact, or why their connection could matter. "
-            "Be concise but insightful. Return only the relationship label or phrase. "
-            "Always present this as a suggestion (e.g. Perhaps ...could or Have you considered ..., NOT an assertion)"
+            "Your task: Suggest a possible, not certain, relationship between the subject and object. "
+            "You must always phrase this as a suggestion, never as a fact. "
+            "Begin your response with 'Perhaps...' or 'Have you considered...' "
+            "Focus on what might unite them, how they could interact, or why their connection might matter. "
+            "Be concise but insightful."
         )
         # Always provide both subject and object arguments
         subject_arg = prompt if context_lines else source_description
