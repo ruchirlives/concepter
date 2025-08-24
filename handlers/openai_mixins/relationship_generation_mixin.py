@@ -1,21 +1,12 @@
 class RelationshipGenerationMixin:
     """Mixin for generating relationships and descriptions between entities."""
 
-    def suggest_relationship_from_openai(self, subject, object):
-        """Suggest a relationship between two entities using OpenAI."""
-        if not subject or not object:
-            raise ValueError("Both subject and object must be provided.")
+    def suggest_relationship_from_openai(self, prompt):
+        """Suggest a relationship using OpenAI. The 'prompt' argument is the full prompt."""
+        if not prompt:
+            raise ValueError("A prompt must be provided.")
 
         client = self.get_openai_client()
-
-        prompt = (
-            "You are a helpful assistant whose ONLY job is to output a descriptive relationship text of max 30 words.\n"
-            'Given the following subject and object, each with a "name" and a "description":\n'
-            "Please describe the relationship between the two in a short sentence.\n"
-            f"Subject: {subject}\n"
-            f"Object: {object}\n"
-            "Now strictly output the relationship description:"
-        )
 
         response = client.chat.completions.create(
             model="gpt-4o-mini",

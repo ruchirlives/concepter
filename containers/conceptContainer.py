@@ -334,23 +334,19 @@ class ConceptContainer(BaseContainer, StateTools):
         Uses OpenAI to generate a relationship description.
         Optionally, provide context_lines (list of strings) to include in the prompt.
         """
-        source_description = self._build_description()
-        target_description = self._build_description(target_container)
-        # Build prompt (with or without context)
-        context_str = ""
-        if context_lines:
-            context_str = f"Context:\n{chr(10).join(context_lines)}\n\n"
+        source = self._build_description()
+        target = self._build_description(target_container)
+        context_str = f"Context:\n{chr(10).join(context_lines)}\n\n" if context_lines else ""
         prompt = (
-            f"{context_str}Subject: {source_description}\nObject: {target_description}\n\n"
+            f"{context_str}Subject: {source}\nObject: {target}\n\n"
             "Your task: Suggest a possible, not certain, relationship between the subject and object. "
             "You must always phrase this as a suggestion, never as a fact. "
             "Begin your response with 'Perhaps...' or 'Have you considered...' "
             "Focus on what might unite them, how they could interact, or why their connection might matter. "
-            "Be concise but insightful."
+            "Be very concise but insightful. Avoid saying the obvious."
         )
-        # Always provide both subject and object arguments
-        subject_arg = prompt if context_lines else source_description
-        relationship = openai_handler.suggest_relationship_from_openai(subject_arg, target_description)
+        # Always use our prompt as 'subject' and empty string as 'object' to ensure our prompt is used
+        relationship = openai_handler.suggest_relationship_from_openai(prompt)
         self.setPosition(target_container, {"label": relationship, "description": relationship})
 
     @classmethod

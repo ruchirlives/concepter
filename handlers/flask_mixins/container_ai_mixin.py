@@ -422,28 +422,21 @@ class ContainerAIMixin:
             return jsonify({"error": "Invalid subject or object ID"}), 404
 
         try:
-            # Gather context using siblings (containers with the same parent) for both subject and object
+            # Gather context using search_position_z for both subject and object container names
+            repo = getattr(self.container_class, 'repository', None)
             context_lines = []
-            # Subject siblings
-            subject_siblings = set()
-            for parent in getattr(subject_container, 'getParents', lambda: [])():
-                for sibling, _ in getattr(parent, 'getChildrenWithRelations', lambda: [])():
-                    if sibling != subject_container:
-                        sibling_name = sibling.getValue("Name")
-                        if sibling_name:
-                            subject_siblings.add(sibling_name)
-            if subject_siblings:
-                context_lines.append("Subject siblings: " + ", ".join(sorted(subject_siblings)))
-            # Object siblings
-            object_siblings = set()
-            for parent in getattr(object_container, 'getParents', lambda: [])():
-                for sibling, _ in getattr(parent, 'getChildrenWithRelations', lambda: [])():
-                    if sibling != object_container:
-                        sibling_name = sibling.getValue("Name")
-                        if sibling_name:
-                            object_siblings.add(sibling_name)
-            if object_siblings:
-                context_lines.append("Object siblings: " + ", ".join(sorted(object_siblings)))
+            if repo is not None:
+                # Search for similar positions to subject_container Name
+                subject_name = subject_container.getValue("Name")
+                object_name = object_container.getValue("Name")
+                if subject_name:
+                    subject_similar_ids, subject_names = repo.search_position_z(subject_name, top_n=5)
+                    for name in subject_names:
+                        context_lines.append(f"Other factors: {name}")
+                if object_name:
+                    object_similar_ids, object_names = repo.search_position_z(object_name, top_n=5)
+                    for name in object_names:
+                        context_lines.append(f"Also impacts: {name}")
 
             # Optionally, pass this context to the suggest_relationship method if it supports it
             # Otherwise, just append to the prompt if you build it here
