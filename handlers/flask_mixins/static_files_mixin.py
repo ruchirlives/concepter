@@ -29,7 +29,7 @@ class StaticFilesMixin:
         # Build HTML table
         table_rows = "".join(
             [
-                f"<tr class='border-b'><td class='px-4 py-2 font-mono'>{r['rule']}</td><td class='px-4 py-2'>{r['endpoint']}</td><td class='px-4 py-2'>{r['doc']}</td></tr>"
+                f"<tr class='border-b'><td class='px-4 py-2 font-mono'>{r['rule']}</td><td class='px-4 py-2'>{r['endpoint']}</td><td class='px-4 py-2'>{r['doc']}</td></tr>"  # noqa
                 for r in routes
             ]
         )
@@ -47,7 +47,8 @@ class StaticFilesMixin:
                 <h1 class='text-2xl font-bold mb-4'>API Routes</h1>
                 <table class='min-w-full border border-gray-300 rounded'>
                     <thead class='bg-gray-100'>
-                        <tr><th class='px-4 py-2 text-left'>Route</th><th class='px-4 py-2 text-left'>Endpoint</th><th class='px-4 py-2 text-left'>Description</th></tr>
+                        <tr><th class='px-4 py-2 text-left'>Route</th><th class='px-4 py-2 text-left'>Endpoint</th>
+                        <th class='px-4 py-2 text-left'>Description</th></tr>
                     </thead>
                     <tbody>{table_rows}</tbody>
                 </table>
