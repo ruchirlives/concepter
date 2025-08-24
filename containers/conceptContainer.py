@@ -328,14 +328,33 @@ class ConceptContainer(BaseContainer, StateTools):
             return name
         return f"{name} - {description}"
 
-    def suggest_relationship(self, target_container):
+    def suggest_relationship(self, target_container, context_lines=None):
         """
         Suggest a relationship between this container and the target container.
         Uses OpenAI to generate a relationship description.
+        Optionally, provide context_lines (list of strings) to include in the prompt.
         """
         source_description = self._build_description()
         target_description = self._build_description(target_container)
-        relationship = openai_handler.suggest_relationship_from_openai(source_description, target_description)
+        if context_lines:
+            # Compose a context-aware, compelling prompt
+            context_str = "\n".join(context_lines)
+            prompt = (
+                f"Context:\n{context_str}\n\n"
+                f"Subject: {source_description}\nObject: {target_description}\n\n"
+                "Your task: Propose a compelling, meaningful, and specific connection or relationship between the subject and object above. "
+                "Focus on what unites them, how they interact, or why their connection matters. "
+                "Be concise but insightful. Return only the relationship label or phrase."
+            )
+            relationship = openai_handler.suggest_relationship_from_openai(prompt, "")
+        else:
+            prompt = (
+                f"Subject: {source_description}\nObject: {target_description}\n\n"
+                "Your task: Propose a compelling, meaningful, and specific connection or relationship between the subject and object above. "
+                "Focus on what unites them, how they interact, or why their connection matters. "
+                "Be concise but insightful. Return only the relationship label or phrase."
+            )
+            relationship = openai_handler.suggest_relationship_from_openai(prompt, "")
         self.setPosition(target_container, {"label": relationship, "description": relationship})
 
     @classmethod

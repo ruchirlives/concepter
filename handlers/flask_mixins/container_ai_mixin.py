@@ -422,8 +422,44 @@ class ContainerAIMixin:
             return jsonify({"error": "Invalid subject or object ID"}), 404
 
         try:
-            relationship_description = self.container_class.suggest_relationship(subject_container, object_container)
-            return jsonify({"relationship": relationship_description})
+            # Gather context using search_position_z for both subject and object container names
+            repo = getattr(self.container_class, 'repository', None)
+            context_lines = []
+            if repo is not None:
+                # Search for similar positions to subject_container Name
+                subject_name = subject_container.getValue("Name")
+                object_name = object_container.getValue("Name")
+                if subject_name:
+                    subject_similar_ids = repo.search_position_z(subject_name, top_n=5)
+                    for node_id in subject_similar_ids:
+                        node = repo.load_node(node_id)
+                        if node is not None and hasattr(node, 'getValue'):
+                            context_lines.append(f"Subject-similar: {node.getValue('Name')}")
+                if object_name:
+                    object_similar_ids = repo.search_position_z(object_name, top_n=5)
+                    for node_id in object_similar_ids:
+                        node = repo.load_node(node_id)
+                        if node is not None and hasattr(node, 'getValue'):
+                            context_lines.append(f"Object-similar: {node.getValue('Name')}")
+
+            # Optionally, pass this context to the suggest_relationship method if it supports it
+            # Otherwise, just append to the prompt if you build it here
+            if hasattr(self.container_class, 'suggest_relationship'):
+                # Try to pass context if supported, else fallback
+                import inspect
+                sig = inspect.signature(self.container_class.suggest_relationship)
+                if len(sig.parameters) > 2:
+                    relationship_description = self.container_class.suggest_relationship(
+                        subject_container, object_container, context_lines
+                    )
+                else:
+                    relationship_description = self.container_class.suggest_relationship(
+                        subject_container, object_container
+                    )
+            else:
+                relationship_description = None
+
+            return jsonify({"relationship": relationship_description, "context": context_lines})
 
         except Exception as e:
             return jsonify({"error": f"Failed to suggest relationship: {str(e)}"}), 500
