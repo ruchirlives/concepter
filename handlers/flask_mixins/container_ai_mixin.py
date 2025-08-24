@@ -184,7 +184,7 @@ class ContainerAIMixin:
         return jsonify({"message": "Containers embedded successfully"})
 
     def embed_positions(self):
-        """Generate embeddings for relationship positions."""
+        """Generate embeddings for relationship positions with enhanced context."""
         data = request.get_json() or {}
         container_ids = data.get("container_ids", [])
 
@@ -195,6 +195,18 @@ class ContainerAIMixin:
             container = self.container_class.get_instance_by_id(container_id)
             if not container:
                 continue
+
+            # Gather parent container names
+            parent_names = []
+            if hasattr(container, 'getParents'):
+                for parent in container.getParents():
+                    parent_name = parent.getValue("Name")
+                    if parent_name:
+                        parent_names.append(parent_name)
+            parent_names_str = ", ".join(parent_names)
+
+            # Gather all child containers for context
+            all_children = [c for c, _ in container.getPositions()]
 
             for child, position in container.getPositions():
                 label = ""
@@ -208,7 +220,42 @@ class ContainerAIMixin:
                     label = str(position)
                     position = {"label": label}
 
-                text = f"{container.getValue('Name')} {label} {child.getValue('Name')}".strip()
+                # Source node info
+                src_name = container.getValue("Name") or ""
+                src_desc = container.getValue("Description") or ""
+                src_desc = src_desc.strip()
+                if src_desc and src_desc != src_name:
+                    src_info = f"{src_name} ({src_desc})"
+                else:
+                    src_info = src_name
+
+                # Destination node info
+                dst_name = child.getValue("Name") or ""
+                dst_desc = child.getValue("Description") or ""
+                dst_desc = dst_desc.strip()
+                if dst_desc and dst_desc != dst_name:
+                    dst_info = f"{dst_name} ({dst_desc})"
+                else:
+                    dst_info = dst_name
+
+                # Other child names (excluding this child)
+                other_children = [c.getValue("Name") for c in all_children if c != child and hasattr(c, 'getValue')]
+                other_children_str = ", ".join([n for n in other_children if n])
+
+                # Compose context string
+                context_parts = []
+                if parent_names_str:
+                    context_parts.append(f"Parents: {parent_names_str}")
+                if other_children_str:
+                    context_parts.append(f"Other children: {other_children_str}")
+                context_str = "; ".join(context_parts)
+
+                # Compose embedding text
+                text = f"Source: {src_info}; Label: {label}; Target: {dst_info}"
+                if context_str:
+                    text = f"{text}; Context: {context_str}"
+                text = text.strip()
+
                 z = openai_handler.get_embeddings(text)
                 position["z"] = z
                 container.setPosition(child, position)
