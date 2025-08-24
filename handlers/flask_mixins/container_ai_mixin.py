@@ -1,4 +1,4 @@
-from flask import jsonify, request, send_file
+from flask import jsonify, request
 from handlers.openai_handler import openai_handler
 
 
@@ -42,7 +42,7 @@ class ContainerAIMixin:
             return jsonify({"error": "searchTerm is required"}), 400
         # Assumes self.repository is set to a ContainerRepository instance
         try:
-            id_list = self.container_class.repository.search_position_z(search_term, top_n=top_n)
+            id_list, names_list = self.container_class.repository.search_position_z(search_term, top_n=top_n)
             names = []
             for node_id in id_list:
                 node = self.container_class.repository.load_node(node_id)
@@ -430,32 +430,21 @@ class ContainerAIMixin:
                 subject_name = subject_container.getValue("Name")
                 object_name = object_container.getValue("Name")
                 if subject_name:
-                    subject_similar_ids = repo.search_position_z(subject_name, top_n=5)
-                    for node_id in subject_similar_ids:
-                        node = repo.load_node(node_id)
-                        if node is not None and hasattr(node, 'getValue'):
-                            context_lines.append(f"Subject-similar: {node.getValue('Name')}")
+                    subject_similar_ids, subject_names = repo.search_position_z(subject_name, top_n=5)
+                    for name in subject_names:
+                        context_lines.append(f"Subject-similar: {name}")
                 if object_name:
-                    object_similar_ids = repo.search_position_z(object_name, top_n=5)
-                    for node_id in object_similar_ids:
-                        node = repo.load_node(node_id)
-                        if node is not None and hasattr(node, 'getValue'):
-                            context_lines.append(f"Object-similar: {node.getValue('Name')}")
+                    object_similar_ids, object_names = repo.search_position_z(object_name, top_n=5)
+                    for name in object_names:
+                        context_lines.append(f"Object-similar: {name}")
 
             # Optionally, pass this context to the suggest_relationship method if it supports it
             # Otherwise, just append to the prompt if you build it here
             if hasattr(self.container_class, 'suggest_relationship'):
                 # Try to pass context if supported, else fallback
-                import inspect
-                sig = inspect.signature(self.container_class.suggest_relationship)
-                if len(sig.parameters) > 2:
-                    relationship_description = self.container_class.suggest_relationship(
-                        subject_container, object_container, context_lines
-                    )
-                else:
-                    relationship_description = self.container_class.suggest_relationship(
-                        subject_container, object_container
-                    )
+                relationship_description = subject_container.suggest_relationship(
+                    object_container, context_lines
+                )
             else:
                 relationship_description = None
 

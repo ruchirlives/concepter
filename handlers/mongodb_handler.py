@@ -76,16 +76,21 @@ class MongoContainerRepository(ContainerRepository):
                     score = cosine_similarity(search_embedding, z)
                     scored.append({
                         "parent_id": doc.get("_id"),
+                        "parent_name": doc.get("values", {}).get("Name", ""),
                         "container_id": child.get("to"),
+                        "child_name": child.get("Name", ""),
                         "score": score
                     })
         scored.sort(key=lambda x: x["score"], reverse=True)
         top = scored[:top_n]
-        merged = []
+        id_list = []
+        names_list = []
         for item in top:
-            merged.append(item["parent_id"])
-            merged.append(item["container_id"])
-        return merged
+            id_list.append(item["parent_id"])
+            id_list.append(item["container_id"])
+            names_list.append(item["parent_name"])
+            names_list.append(item["child_name"])
+        return id_list, names_list
 
     @staticmethod
     def merge_unique_field(all_nodes, field_path, field_type="list"):

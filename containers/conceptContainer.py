@@ -336,25 +336,21 @@ class ConceptContainer(BaseContainer, StateTools):
         """
         source_description = self._build_description()
         target_description = self._build_description(target_container)
+        # Build prompt (with or without context)
+        context_str = ""
         if context_lines:
-            # Compose a context-aware, compelling prompt
-            context_str = "\n".join(context_lines)
-            prompt = (
-                f"Context:\n{context_str}\n\n"
-                f"Subject: {source_description}\nObject: {target_description}\n\n"
-                "Your task: Propose a compelling, meaningful, and specific connection or relationship between the subject and object above. "
-                "Focus on what unites them, how they interact, or why their connection matters. "
-                "Be concise but insightful. Return only the relationship label or phrase."
-            )
-            relationship = openai_handler.suggest_relationship_from_openai(prompt, "")
-        else:
-            prompt = (
-                f"Subject: {source_description}\nObject: {target_description}\n\n"
-                "Your task: Propose a compelling, meaningful, and specific connection or relationship between the subject and object above. "
-                "Focus on what unites them, how they interact, or why their connection matters. "
-                "Be concise but insightful. Return only the relationship label or phrase."
-            )
-            relationship = openai_handler.suggest_relationship_from_openai(prompt, "")
+            context_str = f"Context:\n{chr(10).join(context_lines)}\n\n"
+        prompt = (
+            f"{context_str}Subject: {source_description}\nObject: {target_description}\n\n"
+            "Your task: Propose a compelling, meaningful, and specific connection or relationship between "
+            "the subject and object above. "
+            "Focus on what unites them, how they interact, or why their connection matters. "
+            "Be concise but insightful. Return only the relationship label or phrase. Present as a suggestion "
+            "e.g. Perhaps...could, rather than an assertion"
+        )
+        # Always provide both subject and object arguments
+        subject_arg = prompt if context_lines else source_description
+        relationship = openai_handler.suggest_relationship_from_openai(subject_arg, target_description)
         self.setPosition(target_container, {"label": relationship, "description": relationship})
 
     @classmethod
