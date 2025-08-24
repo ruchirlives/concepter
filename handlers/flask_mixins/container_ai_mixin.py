@@ -42,10 +42,10 @@ class ContainerAIMixin:
             return jsonify({"error": "searchTerm is required"}), 400
         # Assumes self.repository is set to a ContainerRepository instance
         try:
-            id_list = self.repository.search_position_z(search_term, top_n=top_n)
+            id_list = self.container_class.repository.search_position_z(search_term, top_n=top_n)
             names = []
             for node_id in id_list:
-                node = self.repository.load_node(node_id)
+                node = self.container_class.repository.load_node(node_id)
                 if node is not None and hasattr(node, 'getValue'):
                     names.append(node.getValue("Name"))
             return jsonify({"result": names})

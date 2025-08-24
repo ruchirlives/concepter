@@ -76,7 +76,7 @@ class MongoContainerRepository(ContainerRepository):
                     score = cosine_similarity(search_embedding, z)
                     scored.append({
                         "parent_id": doc.get("_id"),
-                        "container_id": child.get("id"),
+                        "container_id": child.get("to"),
                         "score": score
                     })
         scored.sort(key=lambda x: x["score"], reverse=True)
@@ -168,7 +168,7 @@ class MongoContainerRepository(ContainerRepository):
         if not doc:
             print(f"⚠️ No node found with id: {node_id}")
             return None
-        print(f"✅ doc: {doc}")
+        # print(f"✅ doc: {doc}")
         inst = BaseContainer.deserialize_node_info(doc)
         # Rehydrate edges for all loaded containers
         self.rehydrate_edges_for_containers([inst])
