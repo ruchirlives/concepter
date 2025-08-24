@@ -1,13 +1,16 @@
+
 import os
 import sys
 import pickle
 import json
+import numpy as np
 from pymongo import MongoClient, UpdateOne
 from dotenv import load_dotenv
 from typing import List, Any, Dict, Optional
 from bson import Binary
 from handlers.repository_handler import ContainerRepository
 from containers.baseContainer import BaseContainer
+from handlers.openai_handler import openai_handler
 
 # Resolve base and project directories
 if getattr(sys, "frozen", False):
@@ -52,6 +55,38 @@ print("✅ Connected to MongoDB.")
 
 
 class MongoContainerRepository(ContainerRepository):
+    def search_position_z(self, searchTerm: str, top_n=10):
+        """Vector search: Find containers whose position.z is most similar to the searchTerm embedding.
+        Returns a merged single list of parent_ids and container_ids (flat list, top_n results)."""
+        def cosine_similarity(a, b):
+            a = np.array(a)
+            b = np.array(b)
+            return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+
+        searchTerm = searchTerm.strip()
+        search_embedding = openai_handler.get_embeddings(searchTerm)
+
+        query = {"containers": {"$elemMatch": {"position.z": {"$exists": True}}}}
+        cursor = self.NODES.find(query, {"_id": 1, "values": 1, "containers": 1}).limit(500)
+        scored = []
+        for doc in cursor:
+            for child in doc.get("containers", []):
+                if isinstance(child, dict) and isinstance(child.get("position"), dict) and "z" in child["position"]:
+                    z = child["position"]["z"]
+                    score = cosine_similarity(search_embedding, z)
+                    scored.append({
+                        "parent_id": doc.get("_id"),
+                        "container_id": child.get("id"),
+                        "score": score
+                    })
+        scored.sort(key=lambda x: x["score"], reverse=True)
+        top = scored[:top_n]
+        merged = []
+        for item in top:
+            merged.append(item["parent_id"])
+            merged.append(item["container_id"])
+        return merged
+
     @staticmethod
     def merge_unique_field(all_nodes, field_path, field_type="list"):
         """

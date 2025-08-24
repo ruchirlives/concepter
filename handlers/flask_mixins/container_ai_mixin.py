@@ -29,6 +29,28 @@ class ContainerAIMixin:
         self.app.add_url_rule(
             "/find_similar_positions", "find_similar_positions", self.find_similar_positions, methods=["POST"]
         )
+        self.app.add_url_rule(
+            "/search_position_z", "search_position_z", self.search_position_z_route, methods=["POST"]
+        )
+
+    def search_position_z_route(self):
+        """API endpoint for vector search on position.z."""
+        data = request.get_json() or {}
+        search_term = data.get("searchTerm", "")
+        top_n = int(data.get("top_n", 10))
+        if not search_term:
+            return jsonify({"error": "searchTerm is required"}), 400
+        # Assumes self.repository is set to a ContainerRepository instance
+        try:
+            id_list = self.repository.search_position_z(search_term, top_n=top_n)
+            names = []
+            for node_id in id_list:
+                node = self.repository.load_node(node_id)
+                if node is not None and hasattr(node, 'getValue'):
+                    names.append(node.getValue("Name"))
+            return jsonify({"result": names})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
 
     def autocomplete(self):
         data = request.json
