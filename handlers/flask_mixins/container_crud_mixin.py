@@ -269,7 +269,7 @@ class ContainerCRUDMixin:
                 elif key == "Tags":
                     if value is None:
                         value = ""
-                    value = value.split(",")
+                    value = [v.strip() for v in value.split(",")]
                 elif key == "id":
                     continue
                 target_container.setValue(key, value)
