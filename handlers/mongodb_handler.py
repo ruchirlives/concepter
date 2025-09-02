@@ -272,6 +272,15 @@ class MongoContainerRepository(ContainerRepository):
 
             result = self.NODES.delete_many({"_id": {"$in": remove_ids}})
             total_removed += result.deleted_count
+
+            # For the NODE which has id keep_id, remove any references to itself in its own containers.to
+            keep_node = self.NODES.find_one({"_id": keep_id})
+            if keep_node:
+                containers = keep_node.get("containers", [])
+                filtered_containers = [c for c in containers if c.get("to") != keep_id]
+                if len(filtered_containers) != len(containers):
+                    self.NODES.update_one({"_id": keep_id}, {"$set": {"containers": filtered_containers}})
+
             print(f"✅ Removed duplicate nodes: {remove_ids} and merged containers, tags, allStates into {keep_id}")
         return total_removed
 
