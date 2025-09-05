@@ -76,6 +76,11 @@ class BaseContainer(Container):
         """Save all in-memory container instances to storage."""
         if cls.repository is None:
             raise RuntimeError("ContainerRepository not configured")
+
+        # If no instance, don't save
+        if not cls.instances:
+            return "NO INSTANCES TO SAVE"
+
         # Detach orphaned links first
         for c in cls.instances:
             c.containers = [p for p in c.containers if p[0] in cls.instances]
