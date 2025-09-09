@@ -2,7 +2,35 @@ from htmldocx import HtmlToDocx
 from docx import Document
 from io import BytesIO
 
+
 class HTMLDocument:
+    def get_rtf(self):
+        """
+        Convert the HTML content to RTF format for better compatibility with Microsoft OneNote.
+        Requires the pypandoc library and a working Pandoc installation.
+        """
+        html_content = self.get_html()
+        try:
+            import pypandoc
+
+            # pypandoc requires actual HTML, so we strip the clipboard markers if present
+            # and just use the HTML fragment
+            start = html_content.find("<!--StartFragment-->")
+            end = html_content.find("<!--EndFragment-->")
+            if start != -1 and end != -1:
+                html_fragment = html_content[start + len("<!--StartFragment-->"): end]
+            else:
+                html_fragment = html_content
+            rtf = pypandoc.convert_text(html_fragment, "rtf", format="html")
+            return rtf
+        except ImportError:
+            raise ImportError(
+                "pypandoc library is required for RTF conversion. Install it with 'pip install pypandoc' "
+                "and ensure Pandoc is installed."
+            )
+        except OSError as e:
+            raise RuntimeError(f"Pandoc is required for RTF conversion: {e}")
+
     def __init__(self):
         # Initialize the HTML content with the basic structure
         self.content = []
@@ -42,6 +70,7 @@ class HTMLDocument:
         html_content = self.get_html()
         try:
             import html2text
+
             h = html2text.HTML2Text()
             h.ignore_links = False
             markdown = h.handle(html_content)
