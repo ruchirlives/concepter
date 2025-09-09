@@ -174,6 +174,10 @@ class ConceptContainer(BaseContainer, StateTools):
         html = self.create_rtf()
         return html.get_doc()
 
+    def get_onenote(self):
+        html = self.create_rtf()
+        return html.get_html()
+
     def rename_from_description(self):
         description = self.getValue("Description")
         if not description or description == "":
