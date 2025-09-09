@@ -176,7 +176,7 @@ class ConceptContainer(BaseContainer, StateTools):
 
     def get_onenote(self):
         html = self.create_rtf()
-        return html.get_html()
+        return html.get_markdown()
 
     def rename_from_description(self):
         description = self.getValue("Description")
