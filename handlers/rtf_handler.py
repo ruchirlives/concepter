@@ -4,32 +4,35 @@ from io import BytesIO
 
 
 class HTMLDocument:
-    def get_rtf(self):
+    def get_simple_rtf(self):
         """
-        Convert the HTML content to RTF format for better compatibility with Microsoft OneNote.
-        Requires the pypandoc library and a working Pandoc installation.
+        Generate a simple RTF string from the document content for OneNote compatibility.
+        Supports basic headings, paragraphs, and bullet points.
         """
-        html_content = self.get_html()
-        try:
-            import pypandoc
-
-            # pypandoc requires actual HTML, so we strip the clipboard markers if present
-            # and just use the HTML fragment
-            start = html_content.find("<!--StartFragment-->")
-            end = html_content.find("<!--EndFragment-->")
-            if start != -1 and end != -1:
-                html_fragment = html_content[start + len("<!--StartFragment-->"): end]
-            else:
-                html_fragment = html_content
-            rtf = pypandoc.convert_text(html_fragment, "rtf", format="html")
+        def html_to_rtf(html):
+            # Very basic HTML to RTF conversion for supported tags
+            import re
+            rtf = html
+            # Headings
+            rtf = re.sub(r'<h1>(.*?)</h1>', r'\\b\\fs36 \1\\b0\\fs24\\par', rtf, flags=re.DOTALL)
+            rtf = re.sub(r'<h2>(.*?)</h2>', r'\\b\\fs28 \1\\b0\\fs24\\par', rtf, flags=re.DOTALL)
+            rtf = re.sub(r'<h3>(.*?)</h3>', r'\\b\\fs24 \1\\b0\\fs24\\par', rtf, flags=re.DOTALL)
+            # Bullets
+            rtf = re.sub(r'<ul>\s*<li>(.*?)</li>\s*</ul>', r'\\bullet \1\\par', rtf, flags=re.DOTALL)
+            # Paragraphs and line breaks
+            rtf = re.sub(r'<br\s*/?>', r'\\par ', rtf)
+            # Remove any other tags
+            rtf = re.sub(r'<[^>]+>', '', rtf)
+            # Unescape HTML entities (basic)
+            rtf = rtf.replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>').replace('&quot;', '"').replace('&#39;', "'")
             return rtf
-        except ImportError:
-            raise ImportError(
-                "pypandoc library is required for RTF conversion. Install it with 'pip install pypandoc' "
-                "and ensure Pandoc is installed."
-            )
-        except OSError as e:
-            raise RuntimeError(f"Pandoc is required for RTF conversion: {e}")
+
+        # Join content and convert
+        html = ''.join(self.content)
+        rtf_body = html_to_rtf(html)
+        # RTF header and footer
+        rtf = '{\\rtf1\\ansi\\deff0\\fs24\n' + rtf_body + '\n}'
+        return rtf
 
     def __init__(self):
         # Initialize the HTML content with the basic structure
@@ -64,19 +67,6 @@ class HTMLDocument:
         html = html.replace("EndFragment:00000000", f"EndFragment:{end_fragment:08}")
 
         return html
-
-    def get_markdown(self):
-        # Convert the HTML content to Markdown format.
-        html_content = self.get_html()
-        try:
-            import html2text
-
-            h = html2text.HTML2Text()
-            h.ignore_links = False
-            markdown = h.handle(html_content)
-            return markdown
-        except ImportError:
-            raise ImportError("html2text library is required for Markdown conversion.")
 
     def create_docx(self):
         # Convert the HTML content to a Word document.
