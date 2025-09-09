@@ -50,3 +50,14 @@ class ContainerExportMixin:
                 mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             )
         return jsonify({"doc": "Container not found"})
+
+    def get_onenote(self):
+        """Export container as OneNote document."""
+        data = request.get_json()
+        container_id = data["container_id"]
+        container = self.container_class.get_instance_by_id(container_id)
+
+        if container:
+            onenote_content = container.get_onenote()
+            return jsonify({"onenote": onenote_content})
+        return jsonify({"onenote": "Container not found"})
