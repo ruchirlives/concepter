@@ -6,10 +6,12 @@ from containers.stateTools import StateTools
 
 class ConceptContainer(BaseContainer, StateTools):
     class_values = BaseContainer.class_values.copy()
-    class_values.update({"Tags": [], "z": None, "allStates": {}, "activeState": "base"})
+    class_values.update(
+        {"Tags": [], "z": None, "allStates": {}, "activeState": "base", "Description": "", "Position": {}}
+    )
     custom_values = {
-        "Description": [],
-        "Position": ["resources", "prepares", "delivers", "supports", "consideration"],
+        "Description": "",
+        "Position": {"x": 0, "y": 0},
     }
 
     # Overidden method
