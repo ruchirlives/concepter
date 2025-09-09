@@ -37,6 +37,18 @@ class HTMLDocument:
 
         return html
 
+    def get_markdown(self):
+        # Convert the HTML content to Markdown format.
+        html_content = self.get_html()
+        try:
+            import html2text
+            h = html2text.HTML2Text()
+            h.ignore_links = False
+            markdown = h.handle(html_content)
+            return markdown
+        except ImportError:
+            raise ImportError("html2text library is required for Markdown conversion.")
+
     def create_docx(self):
         # Convert the HTML content to a Word document.
         html_content = self.get_html()

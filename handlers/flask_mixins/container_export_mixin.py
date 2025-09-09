@@ -10,6 +10,7 @@ class ContainerExportMixin:
         self.app.add_url_rule("/get_mermaid", "get_mermaid", self.export_mermaid, methods=["POST"])
         self.app.add_url_rule("/get_gantt", "get_gantt", self.export_gantt, methods=["POST"])
         self.app.add_url_rule("/get_docx", "get_word_doc", self.get_docx, methods=["POST"])
+        self.app.add_url_rule("/get_onenote", "get_onenote", self.get_onenote, methods=["POST"])
 
     def export_mermaid(self):
         """Export container as Mermaid diagram."""
