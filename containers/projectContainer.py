@@ -27,9 +27,6 @@ class ProjectContainer(ConceptContainer):
     def export_docx(self, *args):
         return super().export_docx(*args)
 
-    def export_clipboard(self, *args):
-        return super().export_clipboard(*args)
-
     def set_min_max_dates(self):
         min_date = None
         max_date = None

@@ -50,66 +50,6 @@ class HTMLDocument:
         body = self._build_fragment()
         return f"<html><body>{body}</body></html>"
 
-    def get_cf_html(self):
-        """Return content formatted using the Windows CF_HTML specification."""
-
-        fragment = self._build_fragment()
-        html = f"<html><body><!--StartFragment-->{fragment}<!--EndFragment--></body></html>"
-
-        header = (
-            "Version:0.9\r\n"
-            "StartHTML:00000000\r\n"
-            "EndHTML:00000000\r\n"
-            "StartFragment:00000000\r\n"
-            "EndFragment:00000000\r\n"
-        )
-
-        start_html = len(header)
-        start_fragment = html.find("<!--StartFragment-->") + len("<!--StartFragment-->")
-        end_fragment = html.find("<!--EndFragment-->")
-        start_fragment += start_html
-        end_fragment += start_html
-        end_html = start_html + len(html)
-
-        header = header.replace("StartHTML:00000000", f"StartHTML:{start_html:08d}")
-        header = header.replace("EndHTML:00000000", f"EndHTML:{end_html:08d}")
-        header = header.replace("StartFragment:00000000", f"StartFragment:{start_fragment:08d}")
-        header = header.replace("EndFragment:00000000", f"EndFragment:{end_fragment:08d}")
-
-        return header + html
-
-    # ------------------------------------------------------------------
-    # Clipboard operations
-    # ------------------------------------------------------------------
-    def copy_to_clipboard(self):
-        """Copy the document to the clipboard using CF_HTML when possible."""
-
-        html = self.get_cf_html()
-
-        import platform
-
-        system = platform.system()
-        if system == "Windows":
-            try:
-                import win32clipboard
-
-                cf_html = win32clipboard.RegisterClipboardFormat("HTML Format")
-                win32clipboard.OpenClipboard()
-                try:
-                    win32clipboard.EmptyClipboard()
-                    win32clipboard.SetClipboardData(cf_html, html.encode("utf-8"))
-                finally:
-                    win32clipboard.CloseClipboard()
-            except Exception as exc:  # pragma: no cover - best effort only
-                print(f"Failed to copy HTML to clipboard: {exc}")
-        else:  # Non-Windows platforms fall back to plain text copy
-            try:
-                import pyperclip
-
-                pyperclip.copy(html)
-            except Exception as exc:  # pragma: no cover
-                print(f"Failed to copy HTML to clipboard: {exc}")
-
     # ------------------------------------------------------------------
     # DOCX export helpers
     # ------------------------------------------------------------------
@@ -137,38 +77,3 @@ class HTMLDocument:
         document = self.create_docx()
         document.save(filename)
         return filename
-
-    # ------------------------------------------------------------------
-    # Legacy helpers retained for backwards compatibility
-    # ------------------------------------------------------------------
-    def get_simple_rtf(self):
-        """Generate a basic RTF representation of the document.
-
-        This is retained for compatibility but does not support rich HTML
-        features. Use :meth:`get_cf_html` for richer clipboard export.
-        """
-
-        def html_to_rtf(html):
-            import re
-
-            rtf = html
-            rtf = re.sub(r"<h1>(.*?)</h1>", r"\\b\\fs36 \1\\b0\\fs24\\par", rtf, flags=re.DOTALL)
-            rtf = re.sub(r"<h2>(.*?)</h2>", r"\\b\\fs28 \1\\b0\\fs24\\par", rtf, flags=re.DOTALL)
-            rtf = re.sub(r"<h3>(.*?)</h3>", r"\\b\\fs24 \1\\b0\\fs24\\par", rtf, flags=re.DOTALL)
-            rtf = re.sub(r"<ul>\s*<li>(.*?)</li>\s*</ul>", r"\\bullet \1\\par", rtf, flags=re.DOTALL)
-            rtf = re.sub(r"<br\s*/?>", r"\\par ", rtf)
-            rtf = re.sub(r"<[^>]+>", "", rtf)
-            rtf = (
-                rtf.replace("&amp;", "&")
-                .replace("&lt;", "<")
-                .replace("&gt;", ">")
-                .replace("&quot;", '"')
-                .replace("&#39;", "'")
-            )
-            return rtf
-
-        html = self._build_fragment()
-        rtf_body = html_to_rtf(html)
-        return "{\\rtf1\\ansi\\deff0\\fs24\n" + rtf_body + "\n}"
-
-

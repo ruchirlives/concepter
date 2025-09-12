@@ -171,10 +171,6 @@ class ConceptContainer(BaseContainer, StateTools):
         add_container_to_html(self)
         return html
 
-    def export_clipboard(self, *args):
-        html = self.create_rtf()
-        html.copy_to_clipboard()
-
     def export_docx(self, *args):
         html = self.create_rtf()
         html.save_doc()
@@ -185,7 +181,7 @@ class ConceptContainer(BaseContainer, StateTools):
 
     def get_onenote(self):
         html = self.create_rtf()
-        return html.get_cf_html()
+        return html.get_html()
 
     def rename_from_description(self):
         description = self.getValue("Description")
