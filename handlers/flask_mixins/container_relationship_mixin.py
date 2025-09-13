@@ -168,6 +168,7 @@ class ContainerRelationshipMixin:
                             "source_name": container.getValue("Name"),
                             "target_id": related_container.getValue("id"),
                             "target_name": related_container.getValue("Name"),
+                            "label": position.get("label", ""),
                         }
                     )
         return jsonify(narratives)
