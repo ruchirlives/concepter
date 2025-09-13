@@ -15,6 +15,7 @@ class ContainerRelationshipMixin:
         self.app.add_url_rule("/merge_containers", "merge_containers", self.merge_containers, methods=["POST"])
         self.app.add_url_rule("/get_position/<sourceId>/<targetId>", "get_position", self.get_position, methods=["GET"])
         self.app.add_url_rule("/set_position", "set_position", self.set_position, methods=["POST"])
+        self.app.add_url_rule("/get_narratives", "get_narratives", self.get_narratives, methods=["GET"])
         self.app.add_url_rule(
             "/get_subcontainers/<url_encoded_container_name>",
             "get_subcontainers",
@@ -153,6 +154,24 @@ class ContainerRelationshipMixin:
             return jsonify({"message": "Position set successfully"})
         else:
             return jsonify({"message": "Container not found"}), 404
+
+    def get_narratives(self):
+        """Return all relationshiops with narratives."""
+        containers = self.container_class.get_all_instances()
+        narratives = []
+        for container in containers:
+            for related_container, position in container.getPositions():
+                if isinstance(position, dict) and "narrative" in position:
+                    narratives.append(
+                        {
+                            "source_id": container.getValue("id"),
+                            "source_name": container.getValue("Name"),
+                            "target_id": related_container.getValue("id"),
+                            "target_name": related_container.getValue("Name"),
+                            "narrative": position["narrative"],
+                        }
+                    )
+        return jsonify(narratives)
 
     def get_subcontainers(self, url_encoded_container_name):
         """Return all subcontainers of a container by name."""
