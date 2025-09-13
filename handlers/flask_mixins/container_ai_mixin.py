@@ -1,5 +1,6 @@
 from flask import jsonify, request
 from handlers.openai_handler import openai_handler
+from collections import deque
 
 
 class ContainerAIMixin:
@@ -66,18 +67,64 @@ class ContainerAIMixin:
 
             # Build context from existing containers and their relationships
             context_lines = []
-            for container in self.container_class.instances:
-                for child, relation in container.containers:
-                    label = ""
-                    if isinstance(relation, dict):
-                        label = relation.get("label", "")
-                    elif isinstance(relation, str):
-                        label = relation
-                    context_lines.append(f"{container.getValue('Name')} -[{label}]-> {child.getValue('Name')}")
+            container_id = data.get("containerId")
+
+            def format_container(c):
+                name = c.getValue("Name")
+                desc = c.getValue("Description", "")
+                if desc:
+                    return f"{name} ({desc})"
+                return name
+
+            if container_id:
+                start_container = self.container_class.get_instance_by_id(container_id)
+                if start_container:
+                    max_containers = 20
+                    visited = {start_container}
+                    queue = deque([start_container])
+                    selected = []
+
+                    while queue and len(selected) < max_containers:
+                        current = queue.popleft()
+                        selected.append(current)
+                        neighbours = current.getParents() + current.getChildren()
+                        for neighbour in neighbours:
+                            if neighbour not in visited and len(selected) + len(queue) < max_containers:
+                                visited.add(neighbour)
+                                queue.append(neighbour)
+
+                    for container in selected:
+                        for child, relation in container.containers:
+                            if child not in selected:
+                                continue
+                            label = ""
+                            if isinstance(relation, dict):
+                                label = relation.get("label", "")
+                            elif isinstance(relation, str):
+                                label = relation
+                            context_lines.append(
+                                f"{format_container(container)} -[{label}]-> {format_container(child)}"
+                            )
+                            if len(context_lines) >= 20:
+                                break
+                        if len(context_lines) >= 20:
+                            break
+
+            if not context_lines:
+                for container in self.container_class.instances:
+                    for child, relation in container.containers:
+                        label = ""
+                        if isinstance(relation, dict):
+                            label = relation.get("label", "")
+                        elif isinstance(relation, str):
+                            label = relation
+                        context_lines.append(
+                            f"{format_container(container)} -[{label}]-> {format_container(child)}"
+                        )
+                        if len(context_lines) >= 20:
+                            break
                     if len(context_lines) >= 20:
                         break
-                if len(context_lines) >= 20:
-                    break
 
             if context_lines:
                 context = "\n".join(context_lines)
