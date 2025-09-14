@@ -309,10 +309,11 @@ class ConceptContainer(BaseContainer, StateTools):
             category_container = cls()
             category_container.setValue("Name", category_name)
             category_container.setValue("Description", "")
-            cls.instances.append(category_container)
+            # cls.instances.append(category_container)
             for cont in containers:
                 if cont.getValue("Name") in item_names:
                     category_container.add_container(cont, "includes")
+                    print(f"Added {cont.getValue('Name')} to category {category_name}")
             new_categories.append(category_container)
         return new_categories
 
