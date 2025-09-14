@@ -224,8 +224,10 @@ class ContainerAIMixin:
             if container:
                 # Skip containers that are already embedded
                 if container.getValue("z") is not None:
+                    print("CONTAINER Z IS ALREADY EMBEDDED: " + str(container.getValue("Name")))
                     continue
                 containers.append(container)
+                print("CONTAINER Z IS NONE, EMBEDDING: " + str(container.getValue("Name")))
 
         self.container_class.embed_containers(containers)
         return jsonify({"message": "Containers embedded successfully"})
@@ -368,6 +370,8 @@ class ContainerAIMixin:
 
         for child_id in children_ids:
             child = self.container_class.get_instance_by_id(child_id)
+            if child is None:
+                continue
             if child not in container.getChildren() and child != container:
                 child_z = child.getValue("z")
                 if child_z is None:
@@ -376,7 +380,7 @@ class ContainerAIMixin:
                 # Vector match parent_z and child_z
                 score = self.vector_match(parent_z, child_z)
                 print("Score: " + str(score))
-                if score > 0.8:
+                if score > 0.75:
                     candidate_children.append(child)
                     counter += 1
 

@@ -21,6 +21,7 @@ class ContainerPersistenceMixin:
         """Save all containers to database."""
         data = request.get_json()
         project_name = data["project_name"]
+
         self.container_class.save_project_to_db(project_name)
         return jsonify({"message": "Containers saved successfully"})
 

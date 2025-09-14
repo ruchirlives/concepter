@@ -272,6 +272,9 @@ class ContainerCRUDMixin:
                     value = [v.strip() for v in value.split(",")]
                 elif key == "id":
                     continue
+                elif key == "z":
+                    # Skip writing back 'z' to avoid overwriting embeddings
+                    continue
                 target_container.setValue(key, value)
 
         return jsonify({"message": "Containers written back successfully"})
