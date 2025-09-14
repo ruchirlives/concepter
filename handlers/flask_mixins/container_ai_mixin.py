@@ -183,7 +183,7 @@ class ContainerAIMixin:
     def categorize_containers(self):
         """Categorize containers using AI."""
         data = request.get_json() or {}
-        container_ids = data.get("containers", [])
+        container_ids = data.get("container_ids", [])
 
         if not container_ids:
             return jsonify({"message": "No container IDs provided"}), 400
