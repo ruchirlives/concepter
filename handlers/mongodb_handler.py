@@ -11,50 +11,53 @@ from bson import Binary
 from handlers.repository_handler import ContainerRepository
 from containers.baseContainer import BaseContainer
 from handlers.openai_handler import openai_handler
-
-# Resolve base and project directories
-if getattr(sys, "frozen", False):
-    base_dir = os.path.dirname(sys.executable)
-else:
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-
-project_root = os.path.abspath(os.path.join(base_dir, ".."))
-dotenv_path = os.path.join(project_root, ".env")
-
-# Load .env only if the required vars are missing (to allow permanent envs to take priority)
-if not os.getenv("MONGO_URL") or not os.getenv("MONGO_CERT_NAME"):
-    if os.path.exists(dotenv_path):
-        load_dotenv(dotenv_path)
-    else:
-        print(f"Warning: .env not found at {dotenv_path}")
-
-# Retrieve the runtime environment
-runtime_env = os.getenv("RUNTIME_ENV", "web")
-mongo_url = os.getenv("MONGO_URL")
-cert_name = os.getenv("MONGO_CERT_NAME")
-home_dir = os.getenv("HOME", os.path.expanduser("~"))  # fallback to user profile
-
-# Determine PEM path
-if runtime_env == "local":
-    pem_path = os.path.join(home_dir, cert_name) if cert_name else None
-    print(f"Running in LOCAL mode. PEM path: {pem_path}")
-else:
-    pem_path = os.getenv("MONGO_CLOUD_PATH")
-    print(f"Running in CLOUD mode. PEM path: {pem_path}")
-
-# Check that everything is set correctly
-if not mongo_url:
-    raise ValueError("❌ MONGO_URL is not set.")
-if not pem_path or not os.path.exists(pem_path):
-    raise FileNotFoundError(f"❌ PEM file not found at: {pem_path}")
-
-# Connect to MongoDB
-client = MongoClient(mongo_url, tls=True, tlsCertificateKeyFile=pem_path)
-db = client["Concepter"]
-print("✅ Connected to MongoDB.")
-
+import logging
 
 class MongoContainerRepository(ContainerRepository):
+
+    def __init__(self) -> None:
+        # Resolve base and project directories
+        if getattr(sys, "frozen", False):
+            base_dir = os.path.dirname(sys.executable)
+        else:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+
+        project_root = os.path.abspath(os.path.join(base_dir, ".."))
+        dotenv_path = os.path.join(project_root, ".env")
+
+        # Load .env only if the required vars are missing (to allow permanent envs to take priority)
+        if not os.getenv("MONGO_URL") or not os.getenv("MONGO_CERT_NAME"):
+            if os.path.exists(dotenv_path):
+                load_dotenv(dotenv_path)
+            else:
+                logging.warning(".env not found at %s", dotenv_path)
+
+        # Retrieve the runtime environment
+        runtime_env = os.getenv("RUNTIME_ENV", "web")
+        mongo_url = os.getenv("MONGO_URL")
+        cert_name = os.getenv("MONGO_CERT_NAME")
+        home_dir = os.getenv("HOME", os.path.expanduser("~"))  # fallback to user profile
+
+        # Determine PEM path
+        if runtime_env == "local":
+            pem_path = os.path.join(home_dir, cert_name) if cert_name else None
+            logging.info("Mongo running in LOCAL mode. PEM path: %s", pem_path)
+        else:
+            pem_path = os.getenv("MONGO_CLOUD_PATH")
+            logging.info("Mongo running in CLOUD mode. PEM path: %s", pem_path)
+
+        # Validate required settings
+        if not mongo_url:
+            raise ValueError("MONGO_URL is not set.")
+        if not pem_path or not os.path.exists(pem_path):
+            raise FileNotFoundError(f"PEM file not found at: {pem_path}")
+
+        # Connect to MongoDB and set instance collections
+        self.client = MongoClient(mongo_url, tls=True, tlsCertificateKeyFile=pem_path)
+        self.db = self.client["Concepter"]
+        self.NODES = self.db["nodes"]
+        self.COLL = self.db["collections"]
+        logging.info("Connected to MongoDB.")
     def search_position_z(self, searchTerm: str, top_n=10):
         """Vector search: Find containers whose position.z is most similar to the searchTerm embedding.
         Returns a merged single list of parent_ids and container_ids (flat list, top_n results)."""
@@ -162,10 +165,6 @@ class MongoContainerRepository(ContainerRepository):
                     unmatched.append(edge)
             # keep only unmatched edges
             inst._pending_edges = unmatched if unmatched else []
-
-    NODES = db["nodes"]
-    COLL = db["collections"]
-
     def load_node(self, node_id: Any) -> Optional[BaseContainer]:
         """Load an individual node document by its id and
         deserialize it into a BaseContainer instance, rehydrating edges."""
