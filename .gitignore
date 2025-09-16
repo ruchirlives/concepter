@@ -21,3 +21,4 @@ build/
 *.log
 output.mmd
 handlers/miro_handler.py
+*.json
