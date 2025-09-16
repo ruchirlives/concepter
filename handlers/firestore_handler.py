@@ -88,13 +88,17 @@ class FirestoreContainerRepository(ContainerRepository):
         """
         import numpy as _np
         import datetime as _dt
+        import math as _math
         try:
             from bson import Binary as _Binary  # type: ignore
         except Exception:
             _Binary = None  # optional
 
-        if obj is None or isinstance(obj, (bool, int, float, str)):
+        if obj is None or isinstance(obj, (bool, int, str)):
             return obj
+        if isinstance(obj, float):
+            # Replace non-finite floats with None
+            return obj if _math.isfinite(obj) else None
         if isinstance(obj, bytes):
             return obj
         if isinstance(obj, memoryview):
@@ -108,7 +112,13 @@ class FirestoreContainerRepository(ContainerRepository):
         if isinstance(obj, (list, tuple, set)):
             return [self._firestore_safe(v) for v in obj]
         if isinstance(obj, dict):
-            return {str(k): self._firestore_safe(v) for k, v in obj.items()}
+            safe = {}
+            for k, v in obj.items():
+                key = str(k)
+                if not key:
+                    continue
+                safe[key] = self._firestore_safe(v)
+            return safe
         if _Binary is not None and isinstance(obj, _Binary):
             return bytes(obj)
         return str(obj)
@@ -198,7 +208,20 @@ class FirestoreContainerRepository(ContainerRepository):
         batch = self.client.batch()
         for c in containers:
             doc = self._firestore_safe(c.serialize_node_info())
-            batch.set(self.nodes_coll.document(str(doc["_id"])), doc)
+            try:
+                batch.set(self.nodes_coll.document(str(doc["_id"])), doc)
+            except Exception:
+                # Log helpful diagnostics for offending payloads
+                try:
+                    vals = doc.get("values") or {}
+                    logging.exception(
+                        "Firestore set failed for _id=%s; values types=%s",
+                        doc.get("_id"),
+                        {k: type(v).__name__ for k, v in vals.items()},
+                    )
+                except Exception:
+                    logging.exception("Firestore set failed and diagnostics errored as well")
+                raise
             proj_nodes.append({"id": doc["_id"], "Name": (doc.get("values") or {}).get("Name")})
         batch.commit()
 
