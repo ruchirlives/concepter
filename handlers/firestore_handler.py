@@ -22,35 +22,44 @@ class FirestoreContainerRepository(ContainerRepository):
         self._firestore = firestore
 
         # Prefer emulator if configured
-        emulator_host = os.getenv('FIRESTORE_EMULATOR_HOST')
+        emulator_host = os.getenv("FIRESTORE_EMULATOR_HOST")
         if emulator_host:
-            project = os.getenv('GCP_PROJECT') or os.getenv('GOOGLE_CLOUD_PROJECT') or 'demo-project'
+            project = os.getenv("GCP_PROJECT") or os.getenv("GOOGLE_CLOUD_PROJECT") or "demo-project"
             self.client = firestore.Client(project=project)
-            logging.info('Connected to Firestore emulator at %s (project=%s)', emulator_host, project)
+            logging.info("Connected to Firestore emulator at %s (project=%s)", emulator_host, project)
         else:
-            creds_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+            creds_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
             if creds_path and os.path.exists(creds_path):
                 creds = service_account.Credentials.from_service_account_file(creds_path)
-                self.client = firestore.Client(credentials=creds, project=os.getenv('GCP_PROJECT') or getattr(creds, 'project_id', None))
-                logging.info('Connected to Firestore with explicit service account credentials')
+                self.client = firestore.Client(
+                    credentials=creds,
+                    project=os.getenv("GCP_PROJECT") or getattr(creds, "project_id", None),
+                    database=os.getenv("FIRESTORE_DB") or "(default)",
+                )
+                logging.info("Connected to Firestore with explicit service account credentials")
             else:
                 try:
                     self.client = firestore.Client()
                 except Exception as e:
-                    raise DefaultCredentialsError('Firestore credentials not found. Set GOOGLE_APPLICATION_CREDENTIALS to a valid service account JSON, configure ADC, or set FIRESTORE_EMULATOR_HOST.') from e
+                    raise DefaultCredentialsError(
+                        "Firestore credentials not found. Set GOOGLE_APPLICATION_CREDENTIALS "
+                        "to a valid service account JSON, "
+                        "configure ADC, or set FIRESTORE_EMULATOR_HOST."
+                    ) from e
 
         self.db = self.client  # alias for parity with Mongo code
 
         # Collection names for parity with Mongo handler
-        self.collections_coll = self.client.collection('collections')
-        self.nodes_coll = self.client.collection('nodes')
+        self.collections_coll = self.client.collection("collections")
+        self.nodes_coll = self.client.collection("nodes")
 
-        logging.info('Connected to Firestore.')
+        logging.info("Connected to Firestore.")
 
     # ---- Optional helper to rehydrate edges like Mongo handler ----
     @staticmethod
     def rehydrate_edges_for_containers(containers: list):
         from containers.baseContainer import BaseContainer
+
         full_id_map = {c.getValue("id"): c for c in BaseContainer.instances}
         for inst in BaseContainer.instances:
             unmatched = []
@@ -91,17 +100,21 @@ class FirestoreContainerRepository(ContainerRepository):
         req_tags = set([t.strip().lower() for t in (tags or []) if t.strip()])
         for s in snaps:
             d = s.to_dict() or {}
-            name = ((d.get("values") or {}).get("Name") or "")
-            node_tags = [(t or "").strip().lower() for t in ((d.get("values") or {}).get("Tags") or []) if isinstance(t, str)]
+            name = (d.get("values") or {}).get("Name") or ""
+            node_tags = [
+                (t or "").strip().lower() for t in ((d.get("values") or {}).get("Tags") or []) if isinstance(t, str)
+            ]
             if st and st not in name.lower():
                 continue
             if req_tags and not req_tags.issubset(set(node_tags)):
                 continue
-            results.append({
-                "_id": d.get("_id"),
-                "values": {"Name": name},
-                "containers": d.get("containers", []),
-            })
+            results.append(
+                {
+                    "_id": d.get("_id"),
+                    "values": {"Name": name},
+                    "containers": d.get("containers", []),
+                }
+            )
         return results
 
     def deduplicate_nodes(self) -> None:
@@ -122,6 +135,7 @@ class FirestoreContainerRepository(ContainerRepository):
         # Legacy path
         if "data" in d and isinstance(d["data"], bytes):
             import pickle
+
             return pickle.loads(d["data"])  # nosec - assumes trusted storage
 
         node_ids = [n.get("id") for n in d.get("nodes", []) if n.get("id")]
@@ -153,9 +167,12 @@ class FirestoreContainerRepository(ContainerRepository):
             proj_nodes.append({"id": doc["_id"], "Name": (doc.get("values") or {}).get("Name")})
         batch.commit()
 
-        self.collections_coll.document(name).set({
-            "nodes": proj_nodes,
-        }, merge=True)
+        self.collections_coll.document(name).set(
+            {
+                "nodes": proj_nodes,
+            },
+            merge=True,
+        )
 
     def delete_project(self, name: str) -> bool:
         doc_ref = self.collections_coll.document(name)
@@ -166,10 +183,13 @@ class FirestoreContainerRepository(ContainerRepository):
         return True
 
     def save_transition_metadata(self, metadata: Dict[str, Any]) -> None:
-        self.collections_coll.document("transition_metadata").set({
-            "data": metadata,
-            "type": "transition_metadata",
-        }, merge=True)
+        self.collections_coll.document("transition_metadata").set(
+            {
+                "data": metadata,
+                "type": "transition_metadata",
+            },
+            merge=True,
+        )
 
     def load_transition_metadata(self) -> Optional[Dict[str, Any]]:
         snap = self.collections_coll.document("transition_metadata").get()
@@ -188,6 +208,3 @@ class FirestoreContainerRepository(ContainerRepository):
         self.collections_coll.document("transition_metadata_backup").set({"data": doc}, merge=True)
         doc_ref.delete()
         return True
-
-
-
