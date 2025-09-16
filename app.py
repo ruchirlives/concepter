@@ -14,8 +14,8 @@ dotenv.load_dotenv(path)
 
 def configure_repository() -> None:
     # Configure ConceptContainer.repository based on CONCEPTER_REPOSITORY
-    backend = os.getenv("CONCEPTER_REPOSITORY", "mongo").strip().lower()
-    if backend == "mongo":
+    backend = os.getenv("CONCEPTER_REPOSITORY", "mongodb").strip().lower()
+    if backend == "mongodb":
         from handlers.mongodb_handler import MongoContainerRepository
 
         ConceptContainer.repository = MongoContainerRepository()
