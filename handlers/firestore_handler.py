@@ -10,6 +10,8 @@ class FirestoreContainerRepository(ContainerRepository):
     def __init__(self) -> None:
         try:
             from google.cloud import firestore  # type: ignore
+            from google.auth.exceptions import DefaultCredentialsError  # type: ignore
+            from google.oauth2 import service_account  # type: ignore
         except Exception as e:
             raise RuntimeError(
                 "google-cloud-firestore is not installed or failed to import.\n"
@@ -17,16 +19,33 @@ class FirestoreContainerRepository(ContainerRepository):
                 "Also ensure credentials are available (ADC) or set GOOGLE_APPLICATION_CREDENTIALS."
             ) from e
 
-        # Initialize client (uses Application Default Credentials by default)
         self._firestore = firestore
-        self.client = firestore.Client()
+
+        # Prefer emulator if configured
+        emulator_host = os.getenv('FIRESTORE_EMULATOR_HOST')
+        if emulator_host:
+            project = os.getenv('GCP_PROJECT') or os.getenv('GOOGLE_CLOUD_PROJECT') or 'demo-project'
+            self.client = firestore.Client(project=project)
+            logging.info('Connected to Firestore emulator at %s (project=%s)', emulator_host, project)
+        else:
+            creds_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+            if creds_path and os.path.exists(creds_path):
+                creds = service_account.Credentials.from_service_account_file(creds_path)
+                self.client = firestore.Client(credentials=creds, project=os.getenv('GCP_PROJECT') or getattr(creds, 'project_id', None))
+                logging.info('Connected to Firestore with explicit service account credentials')
+            else:
+                try:
+                    self.client = firestore.Client()
+                except Exception as e:
+                    raise DefaultCredentialsError('Firestore credentials not found. Set GOOGLE_APPLICATION_CREDENTIALS to a valid service account JSON, configure ADC, or set FIRESTORE_EMULATOR_HOST.') from e
+
         self.db = self.client  # alias for parity with Mongo code
 
         # Collection names for parity with Mongo handler
-        self.collections_coll = self.client.collection("collections")
-        self.nodes_coll = self.client.collection("nodes")
+        self.collections_coll = self.client.collection('collections')
+        self.nodes_coll = self.client.collection('nodes')
 
-        logging.info("Connected to Firestore.")
+        logging.info('Connected to Firestore.')
 
     # ---- Optional helper to rehydrate edges like Mongo handler ----
     @staticmethod
@@ -169,4 +188,6 @@ class FirestoreContainerRepository(ContainerRepository):
         self.collections_coll.document("transition_metadata_backup").set({"data": doc}, merge=True)
         doc_ref.delete()
         return True
+
+
 
