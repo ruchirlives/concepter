@@ -14,19 +14,20 @@ class FirestoreContainerRepository(ContainerRepository):
             from google.oauth2 import service_account  # type: ignore
         except Exception as e:
             raise RuntimeError(
-                "google-cloud-firestore is not installed or failed to import.\n"
-                "Install with: pip install google-cloud-firestore\n"
+                "google-cloud-firestore is not installed or failed to import."
+                "Install with: pip install google-cloud-firestore"
                 "Also ensure credentials are available (ADC) or set GOOGLE_APPLICATION_CREDENTIALS."
             ) from e
 
         self._firestore = firestore
 
-        # Prefer emulator if configured
+        # Database selection (supports Firestore multi-database)
+        db_id = os.getenv('FIRESTORE_DATABASE') or os.getenv('FIRESTORE_DB') or '(default)'
         emulator_host = os.getenv("FIRESTORE_EMULATOR_HOST")
         if emulator_host:
             project = os.getenv("GCP_PROJECT") or os.getenv("GOOGLE_CLOUD_PROJECT") or "demo-project"
-            self.client = firestore.Client(project=project)
-            logging.info("Connected to Firestore emulator at %s (project=%s)", emulator_host, project)
+            self.client = firestore.Client(project=project, database=db_id)
+            logging.info('Connected to Firestore emulator at %s (project=%s, database=%s)', emulator_host, project, db_id)
         else:
             creds_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
             if creds_path and os.path.exists(creds_path):
@@ -34,12 +35,12 @@ class FirestoreContainerRepository(ContainerRepository):
                 self.client = firestore.Client(
                     credentials=creds,
                     project=os.getenv("GCP_PROJECT") or getattr(creds, "project_id", None),
-                    database=os.getenv("FIRESTORE_DB") or "(default)",
+                    database=db_id,
                 )
                 logging.info("Connected to Firestore with explicit service account credentials")
             else:
                 try:
-                    self.client = firestore.Client()
+                    self.client = firestore.Client(database=db_id)
                 except Exception as e:
                     raise DefaultCredentialsError(
                         "Firestore credentials not found. Set GOOGLE_APPLICATION_CREDENTIALS "
@@ -53,7 +54,7 @@ class FirestoreContainerRepository(ContainerRepository):
         self.collections_coll = self.client.collection("collections")
         self.nodes_coll = self.client.collection("nodes")
 
-        logging.info("Connected to Firestore.")
+        logging.info('Connected to Firestore (database=%s).', db_id)
 
     # ---- Optional helper to rehydrate edges like Mongo handler ----
     @staticmethod
