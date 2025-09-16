@@ -57,3 +57,16 @@ if __name__ == "__main__":
     configure_repository()
     baseApp = BaseApp()
     baseApp.start_foreground_server()
+
+# Expose WSGI app for servers like Gunicorn (expects module:app)
+# Configure repository once at import time for server runtimes
+try:
+    if os.getenv("CONCEPTER_REPOSITORY"):
+        # Only configure if env var present; otherwise __main__ path will handle local
+        configure_repository()
+except Exception:
+    # Avoid import-time crash in environments that run via __main__
+    pass
+
+flask_server = FlaskServer(ProjectContainer)
+app = flask_server.app
