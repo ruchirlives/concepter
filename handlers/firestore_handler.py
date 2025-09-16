@@ -22,12 +22,14 @@ class FirestoreContainerRepository(ContainerRepository):
         self._firestore = firestore
 
         # Database selection (supports Firestore multi-database)
-        db_id = os.getenv('FIRESTORE_DATABASE') or os.getenv('FIRESTORE_DB') or '(default)'
+        db_id = os.getenv("FIRESTORE_DATABASE") or os.getenv("FIRESTORE_DB") or "(default)"
         emulator_host = os.getenv("FIRESTORE_EMULATOR_HOST")
         if emulator_host:
             project = os.getenv("GCP_PROJECT") or os.getenv("GOOGLE_CLOUD_PROJECT") or "demo-project"
             self.client = firestore.Client(project=project, database=db_id)
-            logging.info('Connected to Firestore emulator at %s (project=%s, database=%s)', emulator_host, project, db_id)
+            logging.info(
+                "Connected to Firestore emulator at %s (project=%s, database=%s)", emulator_host, project, db_id
+            )
         else:
             creds_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
             if creds_path and os.path.exists(creds_path):
@@ -54,7 +56,7 @@ class FirestoreContainerRepository(ContainerRepository):
         self.collections_coll = self.client.collection("collections")
         self.nodes_coll = self.client.collection("nodes")
 
-        logging.info('Connected to Firestore (database=%s).', db_id)
+        logging.info("Connected to Firestore (database=%s).", db_id)
 
     # ---- Optional helper to rehydrate edges like Mongo handler ----
     @staticmethod
@@ -78,6 +80,7 @@ class FirestoreContainerRepository(ContainerRepository):
         # Implementing this requires storing embeddings and computing client-side, which can be expensive.
         # Left unimplemented for now to avoid misleading behavior.
         raise NotImplementedError("Vector similarity search is not implemented for Firestore yet.")
+
     # ---- Serialization helpers ----
     def _firestore_safe(self, obj):
         """Recursively convert objects into Firestore-compatible values.
@@ -89,6 +92,7 @@ class FirestoreContainerRepository(ContainerRepository):
         import numpy as _np
         import datetime as _dt
         import math as _math
+
         try:
             from bson import Binary as _Binary  # type: ignore
         except Exception:
@@ -130,6 +134,40 @@ class FirestoreContainerRepository(ContainerRepository):
             return None
         doc = snap.to_dict()
         inst = BaseContainer.deserialize_node_info(doc)
+        # Rehydrate allStates from subcollection if present
+        try:
+            states_ref = self.nodes_coll.document(str(node_id)).collection("states")
+            state_docs = list(states_ref.stream())
+            if state_docs:
+                all_states: Dict[str, Any] = {}
+                for sd in state_docs:
+                    d = sd.to_dict() or {}
+                    key = str(d.get("state") or sd.id)
+                    items = d.get("items") or []
+                    if key in all_states and isinstance(all_states[key], list):
+                        all_states[key].extend(items)
+                    else:
+                        all_states[key] = items
+                inst.setValue("allStates", all_states)
+        except Exception:
+            pass
+        # Rehydrate allStates from subcollection if present
+        try:
+            states_ref = self.nodes_coll.document(str(node_id)).collection("states")
+            state_docs = list(states_ref.stream())
+            if state_docs:
+                all_states: Dict[str, Any] = {}
+                for sd in state_docs:
+                    d = sd.to_dict() or {}
+                    key = str(d.get("state") or sd.id)
+                    items = d.get("items") or []
+                    if key in all_states and isinstance(all_states[key], list):
+                        all_states[key].extend(items)
+                    else:
+                        all_states[key] = items
+                inst.setValue("allStates", all_states)
+        except Exception:
+            pass
         self.rehydrate_edges_for_containers([inst])
         return inst
 
@@ -199,38 +237,81 @@ class FirestoreContainerRepository(ContainerRepository):
             containers.append(inst)
 
         self.rehydrate_edges_for_containers(containers)
+        # Attach allStates from subcollections
+        try:
+            for inst in containers:
+                nid = inst.getValue("id")
+                if not nid:
+                    continue
+                states_ref = self.nodes_coll.document(str(nid)).collection("states")
+                state_docs = list(states_ref.stream())
+                if state_docs:
+                    all_states: Dict[str, Any] = {}
+                    for sd in state_docs:
+                        d = sd.to_dict() or {}
+                        key = str(d.get("state") or sd.id)
+                        items = d.get("items") or []
+                        if key in all_states and isinstance(all_states[key], list):
+                            all_states[key].extend(items)
+                        else:
+                            all_states[key] = items
+                    inst.setValue("allStates", all_states)
+        except Exception:
+            pass
         return containers
 
     def save_project(self, name: str, containers: List[Any]) -> None:
         ops = []  # not used; kept for parity with Mongo version
         proj_nodes: List[Dict[str, Any]] = []
 
-        batch = self.client.batch()
+        docs_to_write: list[tuple[str, dict]] = []
         for c in containers:
-            doc = self._firestore_safe(c.serialize_node_info())
-            try:
-                batch.set(self.nodes_coll.document(str(doc["_id"])), doc)
-            except Exception:
-                # Log helpful diagnostics for offending payloads
+            raw = c.serialize_node_info()
+            doc = self._firestore_safe(raw)
+            vals = doc.get("values") or {}
+
+            # Persist allStates into a subcollection to avoid nested entity/size limits
+            all_states = vals.pop("allStates", None)
+            nid = str(doc.get("_id"))
+            if isinstance(all_states, dict):
                 try:
-                    vals = doc.get("values") or {}
-                    logging.exception(
-                        "Firestore set failed for _id=%s; values types=%s",
-                        doc.get("_id"),
-                        {k: type(v).__name__ for k, v in vals.items()},
-                    )
+                    states_ref = self.nodes_coll.document(nid).collection("states")
+                    # Clear previous state docs for this node
+                    existing = list(states_ref.stream())
+                    if existing:
+                        batch_del = self.client.batch()
+                        for sd in existing:
+                            batch_del.delete(sd.reference)
+                        batch_del.commit()
+
+                    # Write each state as its own document; chunk large lists
+                    for state_key, items in all_states.items():
+                        items_safe = self._firestore_safe(items)
+                        chunk_size = 200
+                        if isinstance(items_safe, list) and len(items_safe) > chunk_size:
+                            for idx in range(0, len(items_safe), chunk_size):
+                                chunk = items_safe[idx: idx + chunk_size]
+                                states_ref.document(f"{state_key}-{idx//chunk_size}").set(
+                                    {"state": str(state_key), "items": chunk}, merge=False
+                                )
+                        else:
+                            states_ref.document(str(state_key)).set(
+                                {"state": str(state_key), "items": items_safe}, merge=False
+                            )
                 except Exception:
-                    logging.exception("Firestore set failed and diagnostics errored as well")
-                raise
+                    # If persisting states fails, continue with core doc
+                    pass
+
+            docs_to_write.append((nid, doc))
             proj_nodes.append({"id": doc["_id"], "Name": (doc.get("values") or {}).get("Name")})
+        # Batch write for performance
+        batch = self.client.batch()
+        for _id, d in docs_to_write:
+            batch.set(self.nodes_coll.document(_id), d)
         batch.commit()
 
-        self.collections_coll.document(name).set(
-            {
-                "nodes": proj_nodes,
-            },
-            merge=True,
-        )
+        # Save project membership metadata
+        self.collections_coll.document(name).set({"nodes": proj_nodes}, merge=True)
 
     def delete_project(self, name: str) -> bool:
         doc_ref = self.collections_coll.document(name)
