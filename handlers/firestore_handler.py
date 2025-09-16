@@ -78,6 +78,40 @@ class FirestoreContainerRepository(ContainerRepository):
         # Implementing this requires storing embeddings and computing client-side, which can be expensive.
         # Left unimplemented for now to avoid misleading behavior.
         raise NotImplementedError("Vector similarity search is not implemented for Firestore yet.")
+    # ---- Serialization helpers ----
+    def _firestore_safe(self, obj):
+        """Recursively convert objects into Firestore-compatible values.
+        - Converts numpy types/arrays to native Python types/lists
+        - Converts sets/tuples to lists
+        - Leaves bytes as-is; converts memoryview to bytes
+        - Converts unknown objects to strings as a last resort
+        """
+        import numpy as _np
+        import datetime as _dt
+        try:
+            from bson import Binary as _Binary  # type: ignore
+        except Exception:
+            _Binary = None  # optional
+
+        if obj is None or isinstance(obj, (bool, int, float, str)):
+            return obj
+        if isinstance(obj, bytes):
+            return obj
+        if isinstance(obj, memoryview):
+            return bytes(obj)
+        if isinstance(obj, (_dt.datetime, _dt.date)):
+            return obj.isoformat()
+        if isinstance(obj, _np.generic):
+            return obj.item()
+        if isinstance(obj, _np.ndarray):
+            return obj.astype(float).tolist() if _np.issubdtype(obj.dtype, _np.number) else obj.tolist()
+        if isinstance(obj, (list, tuple, set)):
+            return [self._firestore_safe(v) for v in obj]
+        if isinstance(obj, dict):
+            return {str(k): self._firestore_safe(v) for k, v in obj.items()}
+        if _Binary is not None and isinstance(obj, _Binary):
+            return bytes(obj)
+        return str(obj)
 
     def load_node(self, node_id: Any) -> Optional[Any]:
         doc_ref = self.nodes_coll.document(str(node_id))
@@ -163,7 +197,7 @@ class FirestoreContainerRepository(ContainerRepository):
 
         batch = self.client.batch()
         for c in containers:
-            doc = c.serialize_node_info()
+            doc = self._firestore_safe(c.serialize_node_info())
             batch.set(self.nodes_coll.document(str(doc["_id"])), doc)
             proj_nodes.append({"id": doc["_id"], "Name": (doc.get("values") or {}).get("Name")})
         batch.commit()
