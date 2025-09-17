@@ -1,4 +1,3 @@
-
 import os
 import sys
 import pickle
@@ -12,6 +11,7 @@ from handlers.repository_handler import ContainerRepository
 from containers.baseContainer import BaseContainer
 from handlers.openai_handler import openai_handler
 import logging
+
 
 class MongoContainerRepository(ContainerRepository):
 
@@ -46,11 +46,33 @@ class MongoContainerRepository(ContainerRepository):
             pem_path = os.getenv("MONGO_CLOUD_PATH")
             logging.info("Mongo running in CLOUD mode. PEM path: %s", pem_path)
 
-        # Validate required settings
+        # Validate required settings and handle PEM via env content when running in cloud
         if not mongo_url:
             raise ValueError("MONGO_URL is not set.")
+
+        # If pem_path is not present or does not exist, try to source PEM from environment content
         if not pem_path or not os.path.exists(pem_path):
-            raise FileNotFoundError(f"PEM file not found at: {pem_path}")
+            pem_content = (
+                os.getenv("MONGO_PEM_CONTENT")
+                or os.getenv("MONGO_CLIENT_PEM")
+                or os.getenv("MONGO_PEM")
+            )
+            if pem_content:
+                try:
+                    # Cloud Run allows writing to /tmp
+                    tmp_pem_path = "/tmp/mongo_client.pem"
+                    with open(tmp_pem_path, "w", encoding="utf-8") as f:
+                        f.write(pem_content)
+                    pem_path = tmp_pem_path
+                    logging.info("Wrote PEM content from env to %s", pem_path)
+                except Exception as e:
+                    logging.error("Failed writing PEM content to temp file: %s", e)
+                    raise
+
+        if not pem_path or not os.path.exists(pem_path):
+            raise FileNotFoundError(
+                "PEM file not found. Provide file via MONGO_CLOUD_PATH or set MONGO_PEM_CONTENT env."
+            )
 
         # Connect to MongoDB and set instance collections
         self.client = MongoClient(mongo_url, tls=True, tlsCertificateKeyFile=pem_path)
@@ -58,9 +80,11 @@ class MongoContainerRepository(ContainerRepository):
         self.NODES = self.db["nodes"]
         self.COLL = self.db["collections"]
         logging.info("Connected to MongoDB.")
+
     def search_position_z(self, searchTerm: str, top_n=10):
         """Vector search: Find containers whose position.z is most similar to the searchTerm embedding.
         Returns a merged single list of parent_ids and container_ids (flat list, top_n results)."""
+
         def cosine_similarity(a, b):
             a = np.array(a)
             b = np.array(b)
@@ -77,13 +101,15 @@ class MongoContainerRepository(ContainerRepository):
                 if isinstance(child, dict) and isinstance(child.get("position"), dict) and "z" in child["position"]:
                     z = child["position"]["z"]
                     score = cosine_similarity(search_embedding, z)
-                    scored.append({
-                        "parent_id": doc.get("_id"),
-                        "parent_name": doc.get("values", {}).get("Name", ""),
-                        "container_id": child.get("to"),
-                        "child_name": child.get("Name", ""),
-                        "score": score
-                    })
+                    scored.append(
+                        {
+                            "parent_id": doc.get("_id"),
+                            "parent_name": doc.get("values", {}).get("Name", ""),
+                            "container_id": child.get("to"),
+                            "child_name": child.get("Name", ""),
+                            "score": score,
+                        }
+                    )
         scored.sort(key=lambda x: x["score"], reverse=True)
         top = scored[:top_n]
         id_list = []
@@ -108,6 +134,7 @@ class MongoContainerRepository(ContainerRepository):
         is_tags = field_path == ["values", "Tags"]
         if field_type == "list":
             import json
+
             merged = []
             seen = set()
             for node in all_nodes:
@@ -165,6 +192,7 @@ class MongoContainerRepository(ContainerRepository):
                     unmatched.append(edge)
             # keep only unmatched edges
             inst._pending_edges = unmatched if unmatched else []
+
     def load_node(self, node_id: Any) -> Optional[BaseContainer]:
         """Load an individual node document by its id and
         deserialize it into a BaseContainer instance, rehydrating edges."""
@@ -186,12 +214,7 @@ class MongoContainerRepository(ContainerRepository):
         query = {"values.Name": {"$regex": search_term, "$options": "i"}}
         if tags:
             # All tags in the list must be present in values.Tags
-            query = {
-                "$and": [
-                    query,
-                    {"values.Tags": {"$all": tags}}
-                ]
-            }
+            query = {"$and": [query, {"values.Tags": {"$all": tags}}]}
         cursor = self.NODES.find(
             query,
             {"_id": 1, "values.Name": 1, "containers": 1},
@@ -212,16 +235,8 @@ class MongoContainerRepository(ContainerRepository):
     def deduplicate_nodes(self) -> None:
         """Remove duplicate nodes from the database."""
         pipeline = [
-            {
-                "$group": {
-                    "_id": "$values.Name",
-                    "uniqueIds": {"$addToSet": "$_id"},
-                    "count": {"$sum": 1}
-                }
-            },
-            {
-                "$match": {"count": {"$gt": 1}}
-            }
+            {"$group": {"_id": "$values.Name", "uniqueIds": {"$addToSet": "$_id"}, "count": {"$sum": 1}}},
+            {"$match": {"count": {"$gt": 1}}},
         ]
 
         duplicates = list(self.NODES.aggregate(pipeline))
