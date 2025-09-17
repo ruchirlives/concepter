@@ -291,7 +291,7 @@ class FirestoreContainerRepository(ContainerRepository):
                         if isinstance(items_safe, list) and len(items_safe) > chunk_size:
                             for idx in range(0, len(items_safe), chunk_size):
                                 chunk = items_safe[idx: idx + chunk_size]
-                                states_ref.document(f"{state_key}-{idx//chunk_size}").set(
+                                states_ref.document(f"{state_key}-{idx // chunk_size}").set(
                                     {"state": str(state_key), "items": chunk}, merge=False
                                 )
                         else:
