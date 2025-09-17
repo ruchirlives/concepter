@@ -15,17 +15,20 @@ dotenv.load_dotenv(path, override=True)
 def configure_repository() -> None:
     # Configure ConceptContainer.repository based on CONCEPTER_REPOSITORY
     backend_raw = os.getenv("CONCEPTER_REPOSITORY", "mongo")
+    print("Configuring CONCEPTER_REPOSITORY:", backend_raw)
     backend = (backend_raw or "").strip().lower()
     if backend in {"mongo", "mongodb"}:
         from handlers.mongodb_handler import MongoContainerRepository
 
         ConceptContainer.repository = MongoContainerRepository()
         logging.info("Configured ConceptContainer.repository with Mongo backend")
+        print("Configured ConceptContainer.repository with Mongo backend")
     elif backend == "firestore":
         from handlers.firestore_handler import FirestoreContainerRepository
 
         ConceptContainer.repository = FirestoreContainerRepository()
         logging.info("Configured ConceptContainer.repository with Firestore backend")
+        print("Configured ConceptContainer.repository with Firestore backend")
     elif backend in {"none", "", "disabled"}:
         ConceptContainer.repository = None
         logging.info("ConceptContainer.repository disabled (backend=%s)", backend or "none")
