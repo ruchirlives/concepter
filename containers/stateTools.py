@@ -184,7 +184,7 @@ class StateTools:
     @classmethod
     def list_states_all(cls):
         """
-        List states from the first available container instance.
+        List states from all container instances.
         """
         all_states = set()
         for instance in cls.instances:
