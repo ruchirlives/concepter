@@ -11,6 +11,24 @@ class StateTools:
             all_states[new_name] = all_states.pop(old_name)
             self.setValue("allStates", all_states)
 
+    def prune_states(self):
+        """
+        Remove any states that are identical to "base" state or have no containers.
+        """
+        all_states = self.getValue("allStates")
+        if isinstance(all_states, dict):
+            base_state = all_states.get("base", [])
+            states_to_remove = []
+            for state_name, containers in all_states.items():
+                if state_name != "base":
+                    if containers == base_state or not containers:
+                        states_to_remove.append(state_name)
+
+            for state_name in states_to_remove:
+                del all_states[state_name]
+
+            self.setValue("allStates", all_states)
+
     @classmethod
     def rename_state_all(cls, old_name: str, new_name: str):
         """

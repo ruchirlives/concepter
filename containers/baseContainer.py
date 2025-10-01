@@ -74,6 +74,7 @@ class BaseContainer(Container):
     @classmethod
     def save_project_to_db(cls, project_name: str) -> str:
         """Save all in-memory container instances to storage."""
+
         if cls.repository is None:
             raise RuntimeError("ContainerRepository not configured")
 
@@ -84,6 +85,7 @@ class BaseContainer(Container):
         # Detach orphaned links first
         for c in cls.instances:
             c.containers = [p for p in c.containers if p[0] in cls.instances]
+            c.prune_states()
         cls.repository.save_project(project_name, cls.instances)
         return "WORKED"
 
