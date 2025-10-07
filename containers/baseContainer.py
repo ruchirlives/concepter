@@ -155,6 +155,12 @@ class BaseContainer(Container):
             for child, pos in self.containers
         ]
 
+        # relationships
+        relationships = [
+            {"source": source.getValue("id"), "target": target.getValue("id"), "position": pos}
+            for source, target, pos in self.relationships
+        ]
+
         # add any pending edges (may include unmatched references)
         if getattr(self, "_pending_edges", None):
             edges.extend(self._pending_edges)
@@ -194,6 +200,9 @@ class BaseContainer(Container):
 
         # stash edges for re-link pass
         inst._pending_edges = doc.get("containers", [])
+
+        # relationships
+        inst.relationships = doc.get("relationships", [])
 
         return inst
 
