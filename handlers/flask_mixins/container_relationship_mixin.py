@@ -22,12 +22,32 @@ class ContainerRelationshipMixin:
         self.app.add_url_rule("/get_relationships/<sourceId>", "get_relationships", self.get_relationships, methods=["GET"])
         self.app.add_url_rule("/add_relationship", "add_relationship", self.add_relationship, methods=["POST"])
         self.app.add_url_rule("/remove_relationship", "remove_relationship", self.remove_relationship, methods=["POST"])
+        self.app.add_url_rule("/get_relationship_influencers", "get_relationship_influencers", self.get_relationship_influencers, methods=["POST"])
         self.app.add_url_rule(
             "/get_subcontainers/<url_encoded_container_name>",
             "get_subcontainers",
             self.get_subcontainers,
             methods=["GET"],
         )
+
+    def get_relationship_influencers(self):
+        """Identify containers that influence relationships based on their relationships property."""
+        data = request.get_json() or {}
+        container_id = data.get("container_id")
+        if not container_id:
+            return jsonify({"message": "container_id is required"}), 400
+        container = self.container_class.get_instance_by_id(container_id)
+        if not container:
+            return jsonify({"message": "Container not found"}), 404
+        influencers = set()
+        candidates = self.container_class.instances
+        for candidate in candidates:
+            for src, tgt, pos in candidate.relationships:
+                if src == container or tgt == container:
+                    influencers.add((candidate, src, tgt, pos))
+                    break
+
+        return jsonify({"containers": [self.serialize_container_info(c) for c, _, _, _ in influencers]})
 
     def get_relationships(self, sourceId):
         """Return all relationships of a container."""
