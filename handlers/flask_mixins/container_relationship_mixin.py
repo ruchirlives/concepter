@@ -176,8 +176,8 @@ class ContainerRelationshipMixin:
 
             for related_container, position in child.getPositions():
                 related_tags = related_container.getValue("Tags") or []
-                if "group" in related_tags or related_container == container:
-                    continue  # Skip if the related container is a group or the same as the parent
+                if "group" not in related_tags or related_container == container:
+                    continue  # Skip if the related container is not a group or the same as the parent
 
                 existing_position = container.getPosition(related_container)
                 if existing_position is None:
