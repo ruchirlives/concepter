@@ -60,6 +60,19 @@ class BaseContainer(Container):
             relationship = self.getPosition(child)
             new_instance.add_container(child, relationship)
 
+    def add_relationship(self, source, target, position):
+        """
+        Add or replace a reference to a relationship between two containers.
+        """
+        self.relationships = [rel for rel in self.relationships if rel[0] != source and rel[1] != target]
+        self.relationships.append((source, target, position))
+
+    def remove_relationship(self, source, target):
+        """
+        Remove a relationship between two containers.
+        """
+        self.relationships = [rel for rel in self.relationships if not (rel[0] == source and rel[1] == target)]
+
     @classmethod
     def export_containers(cls, project_name: str, containers: List[Any]) -> str:
         """Export a specific list of containers back to storage under the given project name."""
