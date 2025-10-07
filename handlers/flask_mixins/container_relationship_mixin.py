@@ -17,12 +17,61 @@ class ContainerRelationshipMixin:
         self.app.add_url_rule("/set_position", "set_position", self.set_position, methods=["POST"])
         self.app.add_url_rule("/get_narratives", "get_narratives", self.get_narratives, methods=["GET"])
         self.app.add_url_rule("/inherit_positions", "inherit_positions", self.inherit_positions, methods=["POST"])
+
+        # relationship routes
+        self.app.add_url_rule("/get_relationships/<sourceId>", "get_relationships", self.get_relationships, methods=["GET"])
+        self.app.add_url_rule("/add_relationship", "add_relationship", self.add_relationship, methods=["POST"])
+        self.app.add_url_rule("/remove_relationship", "remove_relationship", self.remove_relationship, methods=["POST"])
         self.app.add_url_rule(
             "/get_subcontainers/<url_encoded_container_name>",
             "get_subcontainers",
             self.get_subcontainers,
             methods=["GET"],
         )
+
+    def get_relationships(self, sourceId):
+        """Return all relationships of a container."""
+        container = self.container_class.get_instance_by_id(sourceId)
+        if not container:
+            return jsonify({"message": "Container not found"}), 404
+
+        relationships = []
+        for src, tgt, pos in container.relationships:
+            relationships.append(
+                {"source_id": src.getValue("id"), "source_name": src.getValue("Name"), "target_id": tgt.getValue("id"), "target_name": tgt.getValue("Name"), "position": pos}
+            )
+        return jsonify(relationships)
+
+    def add_relationship(self):
+        """Add a reference to a relationship between two containers."""
+        data = request.get_json()
+        container_id = data["container_id"]
+        source_id = data["source_id"]
+        target_id = data["target_id"]
+        position = data.get("position", {})
+
+        container = self.container_class.get_instance_by_id(container_id)
+        source = self.container_class.get_instance_by_id(source_id)
+        target = self.container_class.get_instance_by_id(target_id)
+        if not container or not source or not target:
+            return jsonify({"message": "Container not found"}), 404
+        container.add_relationship(source, target, position)
+        return jsonify({"message": "Relationship added successfully"})
+
+    def remove_relationship(self):
+        """Remove a relationship between two containers."""
+        data = request.get_json()
+        container_id = data["container_id"]
+        source_id = data["source_id"]
+        target_id = data["target_id"]
+
+        container = self.container_class.get_instance_by_id(container_id)
+        source = self.container_class.get_instance_by_id(source_id)
+        target = self.container_class.get_instance_by_id(target_id)
+        if not container or not source or not target:
+            return jsonify({"message": "Container not found"}), 404
+        container.remove_relationship(source, target)
+        return jsonify({"message": "Relationship removed successfully"})
 
     def get_parents(self, id):
         """Return all parents of a container."""

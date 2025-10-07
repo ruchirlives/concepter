@@ -183,6 +183,7 @@ class BaseContainer(Container):
             "type": self.__class__.__name__,
             "values": values,
             "containers": edges,
+            "relationships": relationships,
         }
 
     @classmethod
