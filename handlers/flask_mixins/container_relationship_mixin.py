@@ -22,7 +22,7 @@ class ContainerRelationshipMixin:
         self.app.add_url_rule("/get_relationships/<sourceId>", "get_relationships", self.get_relationships, methods=["GET"])
         self.app.add_url_rule("/add_relationship", "add_relationship", self.add_relationship, methods=["POST"])
         self.app.add_url_rule("/remove_relationship", "remove_relationship", self.remove_relationship, methods=["POST"])
-        self.app.add_url_rule("/get_relationship_influencers", "get_relationship_influencers", self.get_relationship_influencers, methods=["POST"])
+        self.app.add_url_rule("/get_influencers", "get_influencers", self.get_influencers, methods=["POST"])
         self.app.add_url_rule(
             "/get_subcontainers/<url_encoded_container_name>",
             "get_subcontainers",
@@ -30,8 +30,8 @@ class ContainerRelationshipMixin:
             methods=["GET"],
         )
 
-    def get_relationship_influencers(self):
-        """Identify containers that influence relationships based on their relationships property."""
+    def get_influencers(self):
+        """Identify containers that influence the provided containerId based on their relationships property."""
         data = request.get_json() or {}
         container_id = data.get("container_id")
         if not container_id:
