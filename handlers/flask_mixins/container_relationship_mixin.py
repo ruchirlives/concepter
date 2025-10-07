@@ -16,6 +16,7 @@ class ContainerRelationshipMixin:
         self.app.add_url_rule("/get_position/<sourceId>/<targetId>", "get_position", self.get_position, methods=["GET"])
         self.app.add_url_rule("/set_position", "set_position", self.set_position, methods=["POST"])
         self.app.add_url_rule("/get_narratives", "get_narratives", self.get_narratives, methods=["GET"])
+        self.app.add_url_rule("/inherit_positions", "inherit_positions", self.inherit_positions, methods=["POST"])
         self.app.add_url_rule(
             "/get_subcontainers/<url_encoded_container_name>",
             "get_subcontainers",
@@ -155,8 +156,37 @@ class ContainerRelationshipMixin:
         else:
             return jsonify({"message": "Container not found"}), 404
 
+    def inherit_positions(self):
+        """Inherit positions from child containers with other group tagged containers if this container is tagged as a group."""
+        data = request.get_json()
+        container_id = data["container_id"]
+        container = self.container_class.get_instance_by_id(container_id)
+
+        if not container:
+            return jsonify({"message": "Container not found"}), 404
+
+        if "group" not in (container.getValue("Tags") or []):
+            return jsonify({"message": "Container is not tagged as a group"}), 400
+
+        children = container.getChildren()
+        for child in children:
+            child_tags = child.getValue("Tags") or []
+            if "group" in child_tags:
+                continue  # Skip if the child is also a group
+
+            for related_container, position in child.getPositions():
+                related_tags = related_container.getValue("Tags") or []
+                if "group" in related_tags or related_container == container:
+                    continue  # Skip if the related container is a group or the same as the parent
+
+                existing_position = container.getPosition(related_container)
+                if existing_position is None:
+                    container.setPosition(related_container, position)
+
+        return jsonify({"message": "Positions inherited successfully"})
+
     def get_narratives(self):
-        """Return all relationshiops with narratives."""
+        """Return all relationships with narratives."""
         containers = self.container_class.get_all_instances()
         narratives = []
         for container in containers:
