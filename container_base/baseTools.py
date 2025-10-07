@@ -15,6 +15,7 @@ class baseTools:
     def __init__(self):
         # Set default values
         self.containers = []
+        self.relationships = []
         self.values = copy.deepcopy(self.class_values)
 
         # Generate id as a has of current time
