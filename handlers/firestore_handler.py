@@ -1,6 +1,6 @@
 import os
 import logging
-from typing import List, Any, Dict, Optional
+from typing import List, Any, Dict, Optional, Tuple, Set
 
 from handlers.repository_handler import ContainerRepository
 from containers.baseContainer import BaseContainer
@@ -198,6 +198,84 @@ class FirestoreContainerRepository(ContainerRepository):
                     "containers": d.get("containers", []),
                 }
             )
+        return results
+
+    def find_relationship_influencers(
+        self, pairs: List[Tuple[str, str]]
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        normalized_pairs: List[Tuple[str, str]] = []
+        seen: Set[Tuple[str, str]] = set()
+        for src, tgt in pairs:
+            if not src or not tgt:
+                continue
+            key = (str(src), str(tgt))
+            if key in seen:
+                continue
+            seen.add(key)
+            normalized_pairs.append(key)
+
+        if not normalized_pairs:
+            return {}
+
+        pair_key_map: Dict[Tuple[str, str], str] = {}
+        results: Dict[str, List[Dict[str, Any]]] = {}
+        lookup = set(normalized_pairs)
+        for src, tgt in normalized_pairs:
+            pair_key = f"{src}::{tgt}"
+            pair_key_map[(src, tgt)] = pair_key
+            results[pair_key] = []
+
+        # Firestore cannot filter array-of-map fields by nested values, so fetch
+        # candidate documents client-side and filter relationships locally.
+        try:
+            docs = self.nodes_coll.stream()
+        except Exception:  # pragma: no cover - surfaced to caller
+            logging.exception("Failed streaming nodes for influencer lookup")
+            raise
+
+        for snap in docs:
+            doc = snap.to_dict() or {}
+            relationships = doc.get("relationships") or []
+            if not relationships:
+                continue
+
+            container_id = doc.get("_id") or snap.id
+            values = doc.get("values") or {}
+            container_name = ""
+            if isinstance(values, dict):
+                name_value = values.get("Name")
+                if isinstance(name_value, str):
+                    container_name = name_value
+
+            for rel in relationships:
+                if not isinstance(rel, dict):
+                    continue
+                src_id = rel.get("source")
+                tgt_id = rel.get("target")
+                if src_id is None or tgt_id is None:
+                    continue
+                src_str = str(src_id)
+                tgt_str = str(tgt_id)
+                if (src_str, tgt_str) not in lookup:
+                    continue
+
+                position = rel.get("position")
+                if not isinstance(position, dict):
+                    position = position or {}
+
+                pair_key = pair_key_map.get((src_str, tgt_str))
+                if pair_key is None:
+                    continue
+                results[pair_key].append(
+                    {
+                        "container_id": str(container_id),
+                        "container_name": container_name,
+                        "source_id": src_str,
+                        "target_id": tgt_str,
+                        "position": position,
+                    }
+                )
+
         return results
 
     def deduplicate_nodes(self) -> None:

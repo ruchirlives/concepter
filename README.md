@@ -65,6 +65,17 @@ ConcepterWeb/
 
 ---
 
+## 🧭 Modeling container links
+
+Each container instance keeps two complementary collections of edges:
+
+* `container.containers` holds the strict parent → child hierarchy that powers tree navigation and state snapshots.
+* `container.relationships` stores additional directed edges between arbitrary containers, captured as `(source, target, position)` tuples for use in graph-style overlays and influence queries.
+
+Use the hierarchy for ownership/containment and reserve `relationships` for cross-cutting links that do **not** imply parentage.  When persisting to or loading from storage the repository serializes both sets—hierarchy edges appear under the `containers` key, while relationship edges are exported separately so they can be queried without disturbing the tree structure.
+
+---
+
 ## 🌐 Docker Commands
 
 ### ✅ Build the image
