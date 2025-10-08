@@ -1,6 +1,6 @@
 import os
 import logging
-from typing import List, Any, Dict, Optional
+from typing import List, Any, Dict, Optional, Tuple
 
 from handlers.repository_handler import ContainerRepository
 from containers.baseContainer import BaseContainer
@@ -199,6 +199,13 @@ class FirestoreContainerRepository(ContainerRepository):
                 }
             )
         return results
+
+    def find_relationship_influencers(
+        self, pairs: List[Tuple[str, str]]
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        raise NotImplementedError(
+            "find_relationship_influencers is not implemented for the Firestore repository."
+        )
 
     def deduplicate_nodes(self) -> None:
         # Non-trivial to implement safely across Firestore; skip for now.

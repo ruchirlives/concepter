@@ -31,38 +31,64 @@ class ContainerRelationshipMixin:
         )
 
     def get_influencers(self):
-        """Identify containers that influence the provided sourceId, targetId pair based on their relationships property."""
+        """Return containers whose relationship pairs match the provided source/target ids."""
+
         data = request.get_json() or {}
-        source_id = data.get("source_id")
-        target_id = data.get("target_id")
-        if not source_id or not target_id:
-            return jsonify({"message": "source_id and target_id are required"}), 400
-        source = self.container_class.get_instance_by_id(source_id)
-        target = self.container_class.get_instance_by_id(target_id)
-        if not source or not target:
-            return jsonify({"message": "Source or Target Container not found"}), 404
-        influencers = set()
-        candidates = self.container_class.instances
-        for candidate in candidates:
-            for src, tgt, pos in candidate.relationships:
-                if src == source or tgt == target:
-                    influencers.add((candidate, src, tgt, pos))
-                    break
-        # return containerId, Name and position of influencers
-        result = []
-        for influencer, src, tgt, pos in influencers:
-            result.append(
-                {
-                    "container_id": influencer.getValue("id"),
-                    "container_name": influencer.getValue("Name"),
-                    "source_id": src.getValue("id"),
-                    "source_name": src.getValue("Name"),
-                    "target_id": tgt.getValue("id"),
-                    "target_name": tgt.getValue("Name"),
-                    "position": pos,
-                }
-            )
-        return jsonify(result)
+
+        raw_pairs = data.get("pairs")
+        if raw_pairs is None:
+            # Backwards compatibility with the previous single-pair payload
+            source_id = data.get("source_id")
+            target_id = data.get("target_id")
+            if source_id and target_id:
+                raw_pairs = [(source_id, target_id)]
+            else:
+                return jsonify({"message": "At least one source_id/target_id pair is required"}), 400
+
+        if isinstance(raw_pairs, (dict, tuple)):
+            raw_pairs = [raw_pairs]
+        elif not isinstance(raw_pairs, list):
+            logging.warning("Expected 'pairs' to be a list, received %s", type(raw_pairs))
+            return jsonify({"message": "pairs must be provided as a list"}), 400
+
+        normalized_pairs = []
+        seen = set()
+        for pair in raw_pairs:
+            src = tgt = None
+            if isinstance(pair, dict):
+                src = pair.get("source_id") or pair.get("source")
+                tgt = pair.get("target_id") or pair.get("target")
+            elif isinstance(pair, (list, tuple)) and len(pair) >= 2:
+                src, tgt = pair[0], pair[1]
+            else:
+                logging.warning("Skipping malformed influencer pair: %s", pair)
+                continue
+
+            if not src or not tgt:
+                logging.warning("Skipping influencer pair missing identifiers: %s", pair)
+                continue
+
+            normalized = (str(src), str(tgt))
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            normalized_pairs.append(normalized)
+
+        if not normalized_pairs:
+            return jsonify({"message": "No valid source/target pairs were provided"}), 400
+
+        repository = getattr(self.container_class, "repository", None)
+        if repository is None:
+            logging.error("Container repository is not configured; cannot look up influencers")
+            return jsonify({"message": "Container repository is not configured"}), 500
+
+        try:
+            influencer_map = repository.find_relationship_influencers(normalized_pairs)
+        except NotImplementedError:
+            logging.error("find_relationship_influencers is not implemented for this repository")
+            return jsonify({"message": "Repository does not support influencer lookups"}), 501
+
+        return jsonify(influencer_map)
 
     def get_relationships(self, sourceId):
         """Return all relationships of a container."""

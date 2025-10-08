@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Any, Dict, Optional
+from typing import List, Any, Dict, Optional, Tuple
 
 
 class ContainerRepository(ABC):
@@ -60,4 +60,11 @@ class ContainerRepository(ABC):
     @abstractmethod
     def delete_transition_metadata(self) -> bool:
         """Delete transition metadata. Returns True if successful, False otherwise."""
+        pass
+
+    @abstractmethod
+    def find_relationship_influencers(
+        self, pairs: List[Tuple[str, str]]
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        """Return containers whose relationship pairs match the provided source/target ids."""
         pass
