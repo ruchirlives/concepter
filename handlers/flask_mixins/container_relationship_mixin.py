@@ -31,23 +31,38 @@ class ContainerRelationshipMixin:
         )
 
     def get_influencers(self):
-        """Identify containers that influence the provided containerId based on their relationships property."""
+        """Identify containers that influence the provided sourceId, targetId pair based on their relationships property."""
         data = request.get_json() or {}
-        container_id = data.get("container_id")
-        if not container_id:
-            return jsonify({"message": "container_id is required"}), 400
-        container = self.container_class.get_instance_by_id(container_id)
-        if not container:
-            return jsonify({"message": "Container not found"}), 404
+        source_id = data.get("source_id")
+        target_id = data.get("target_id")
+        if not source_id or not target_id:
+            return jsonify({"message": "source_id and target_id are required"}), 400
+        source = self.container_class.get_instance_by_id(source_id)
+        target = self.container_class.get_instance_by_id(target_id)
+        if not source or not target:
+            return jsonify({"message": "Source or Target Container not found"}), 404
         influencers = set()
         candidates = self.container_class.instances
         for candidate in candidates:
             for src, tgt, pos in candidate.relationships:
-                if src == container or tgt == container:
+                if src == source or tgt == target:
                     influencers.add((candidate, src, tgt, pos))
                     break
-
-        return jsonify({"containers": [self.serialize_container_info(c) for c, _, _, _ in influencers]})
+        # return containerId, Name and position of influencers
+        result = []
+        for influencer, src, tgt, pos in influencers:
+            result.append(
+                {
+                    "container_id": influencer.getValue("id"),
+                    "container_name": influencer.getValue("Name"),
+                    "source_id": src.getValue("id"),
+                    "source_name": src.getValue("Name"),
+                    "target_id": tgt.getValue("id"),
+                    "target_name": tgt.getValue("Name"),
+                    "position": pos,
+                }
+            )
+        return jsonify(result)
 
     def get_relationships(self, sourceId):
         """Return all relationships of a container."""
