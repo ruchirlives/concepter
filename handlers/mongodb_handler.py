@@ -283,6 +283,17 @@ class MongoContainerRepository(ContainerRepository):
         # refresh
         return inst
 
+    def save_node(self, container: BaseContainer) -> Any:
+        """Serialize and save a single container as a node document in MongoDB."""
+        doc = container.serialize_node_info()
+        result = self.NODES.update_one({"_id": doc["_id"]}, {"$set": doc}, upsert=True)
+        if result.upserted_id:
+            print(f"✅ Saved new node with id: {result.upserted_id}")
+            return result.upserted_id
+        else:
+            print(f"✅ Updated existing node with id: {doc['_id']}")
+            return doc["_id"]
+
     def search_nodes(self, search_term: str, tags: List[str] = []) -> List[Dict[str, Any]]:
         if not search_term and not tags:
             return []

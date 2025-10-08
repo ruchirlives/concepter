@@ -60,18 +60,18 @@ class BaseContainer(Container):
             relationship = self.getPosition(child)
             new_instance.add_container(child, relationship)
 
-    def add_relationship(self, source, target, position):
+    def add_relationship(self, source_id, target_id, position):
         """
         Add or replace a reference to a relationship between two containers.
         """
-        self.relationships = [rel for rel in self.relationships if rel[0] != source and rel[1] != target]
-        self.relationships.append((source, target, position))
+        self.relationships = [rel for rel in self.relationships if rel["source"] != source_id and rel["target"] != target_id]
+        self.relationships.append({"source": source_id, "target": target_id, "position": position})
 
-    def remove_relationship(self, source, target):
+    def remove_relationship(self, source_id, target_id):
         """
         Remove a relationship between two containers.
         """
-        self.relationships = [rel for rel in self.relationships if not (rel[0] == source and rel[1] == target)]
+        self.relationships = [rel for rel in self.relationships if not (rel["source"] == source_id and rel["target"] == target_id)]
 
     @classmethod
     def export_containers(cls, project_name: str, containers: List[Any]) -> str:
@@ -163,16 +163,13 @@ class BaseContainer(Container):
                 values[k] = v
 
         # normal edges
-        edges = [
-            {"to": child.getValue("id"), "position": pos, "Name": child.getValue("Name")}
-            for child, pos in self.containers
-        ]
+        edges = [{"to": child.getValue("id"), "position": pos, "Name": child.getValue("Name")} for child, pos in self.containers]
 
         # relationships
-        relationships = [
-            {"source": source.getValue("id"), "target": target.getValue("id"), "position": pos}
-            for source, target, pos in self.relationships
-        ]
+        relationships = []
+        for rel in self.relationships:
+            rel_dict = {"source": rel["source"], "target": rel["target"], "position": rel["position"]}
+            relationships.append(rel_dict)
 
         # add any pending edges (may include unmatched references)
         if getattr(self, "_pending_edges", None):

@@ -112,11 +112,20 @@ class ContainerRelationshipMixin:
         position = data.get("position", {})
 
         container = self.container_class.get_instance_by_id(container_id)
-        source = self.container_class.get_instance_by_id(source_id)
-        target = self.container_class.get_instance_by_id(target_id)
-        if not container or not source or not target:
+        # source = self.container_class.get_instance_by_id(source_id)
+        # target = self.container_class.get_instance_by_id(target_id)
+        if not container:
             return jsonify({"message": "Container not found"}), 404
-        container.add_relationship(source, target, position)
+        container.add_relationship(source_id, target_id, position)
+
+        # Immediately save container to the repository node if available
+        repository = getattr(self.container_class, "repository", None)
+        if repository:
+            try:
+                repository.save_node(container)
+            except Exception as e:
+                logging.error("Failed to save container after adding relationship: %s", e)
+
         return jsonify({"message": "Relationship added successfully"})
 
     def remove_relationship(self):
@@ -127,11 +136,11 @@ class ContainerRelationshipMixin:
         target_id = data["target_id"]
 
         container = self.container_class.get_instance_by_id(container_id)
-        source = self.container_class.get_instance_by_id(source_id)
-        target = self.container_class.get_instance_by_id(target_id)
-        if not container or not source or not target:
+        # source = self.container_class.get_instance_by_id(source_id)
+        # target = self.container_class.get_instance_by_id(target_id)
+        if not container:
             return jsonify({"message": "Container not found"}), 404
-        container.remove_relationship(source, target)
+        container.remove_relationship(source_id, target_id)
         return jsonify({"message": "Relationship removed successfully"})
 
     def get_parents(self, id):
