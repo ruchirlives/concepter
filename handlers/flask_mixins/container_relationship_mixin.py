@@ -140,6 +140,7 @@ class ContainerRelationshipMixin:
         # target = self.container_class.get_instance_by_id(target_id)
         if not container:
             return jsonify({"message": "Container not found"}), 404
+        # TODO: Fix the remove_relationship method in baseContainer to amend the repository database directly as the containerId might not be in memory
         container.remove_relationship(source_id, target_id)
         return jsonify({"message": "Relationship removed successfully"})
 
