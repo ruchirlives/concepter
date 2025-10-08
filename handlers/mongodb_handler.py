@@ -5,7 +5,7 @@ import json
 import numpy as np
 from pymongo import MongoClient, UpdateOne
 from dotenv import load_dotenv
-from typing import List, Any, Dict, Optional
+from typing import List, Any, Dict, Optional, Tuple, Set
 from bson import Binary
 from handlers.repository_handler import ContainerRepository
 from containers.baseContainer import BaseContainer
@@ -120,6 +120,82 @@ class MongoContainerRepository(ContainerRepository):
             names_list.append(item["parent_name"])
             names_list.append(item["child_name"])
         return id_list, names_list
+
+    def find_relationship_influencers(
+        self, pairs: List[Tuple[str, str]]
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        """Return containers whose relationships match any of the requested source/target pairs."""
+
+        normalized_pairs: List[Tuple[str, str]] = []
+        seen: Set[Tuple[str, str]] = set()
+        for src, tgt in pairs:
+            if not src or not tgt:
+                continue
+            key = (str(src), str(tgt))
+            if key in seen:
+                continue
+            seen.add(key)
+            normalized_pairs.append(key)
+
+        if not normalized_pairs:
+            return {}
+
+        pair_key_map: Dict[Tuple[str, str], str] = {}
+        result: Dict[str, List[Dict[str, Any]]] = {}
+        for src, tgt in normalized_pairs:
+            pair_key = f"{src}::{tgt}"
+            pair_key_map[(src, tgt)] = pair_key
+            result[pair_key] = []
+
+        or_conditions = [
+            {"relationships": {"$elemMatch": {"source": src, "target": tgt}}}
+            for src, tgt in normalized_pairs
+        ]
+
+        query: Dict[str, Any]
+        if len(or_conditions) == 1:
+            query = or_conditions[0]
+        else:
+            query = {"$or": or_conditions}
+
+        projection = {"_id": 1, "values.Name": 1, "relationships": 1}
+        cursor = self.NODES.find(query, projection)
+
+        for doc in cursor:
+            container_id = doc.get("_id")
+            container_name = ""
+            values = doc.get("values") or {}
+            if isinstance(values, dict):
+                name_value = values.get("Name")
+                if isinstance(name_value, str):
+                    container_name = name_value
+
+            for rel in doc.get("relationships", []) or []:
+                if not isinstance(rel, dict):
+                    continue
+                src_id = rel.get("source")
+                tgt_id = rel.get("target")
+                if src_id is None or tgt_id is None:
+                    continue
+                src_str = str(src_id)
+                tgt_str = str(tgt_id)
+                pair_key = pair_key_map.get((src_str, tgt_str))
+                if not pair_key:
+                    continue
+                position = rel.get("position")
+                if position is None:
+                    position = {}
+                result[pair_key].append(
+                    {
+                        "container_id": str(container_id),
+                        "container_name": container_name,
+                        "source_id": src_str,
+                        "target_id": tgt_str,
+                        "position": position,
+                    }
+                )
+
+        return result
 
     @staticmethod
     def merge_unique_field(all_nodes, field_path, field_type="list"):
