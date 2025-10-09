@@ -68,3 +68,11 @@ class ContainerRepository(ABC):
     ) -> Dict[str, List[Dict[str, Any]]]:
         """Return containers whose relationship pairs match the provided source/target ids."""
         pass
+
+    @abstractmethod
+    def remove_relationship(self, container_id: Any, source_id: str, target_id: str) -> bool:
+        """Remove a relationship entry from the given container's persisted node.
+
+        Returns True if a relationship was removed, False otherwise.
+        """
+        pass

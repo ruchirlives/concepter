@@ -15,6 +15,26 @@ import logging
 
 class MongoContainerRepository(ContainerRepository):
 
+    def remove_relationship(self, container_id: Any, source_id: str, target_id: str) -> bool:
+        """Remove a relationship from a node document by exact source/target match.
+
+        Returns True if a relationship entry was removed, False otherwise.
+        """
+        try:
+            src = str(source_id) if source_id is not None else None
+            tgt = str(target_id) if target_id is not None else None
+            if src is None or tgt is None:
+                return False
+
+            res = self.NODES.update_one(
+                {"_id": container_id},
+                {"$pull": {"relationships": {"source": src, "target": tgt}}},
+            )
+            return getattr(res, "modified_count", 0) > 0
+        except Exception as e:
+            logging.error("Failed to remove relationship for node %s: %s", container_id, e)
+            return False
+
     def __init__(self) -> None:
         # Resolve base and project directories
         if getattr(sys, "frozen", False):

@@ -130,18 +130,42 @@ class ContainerRelationshipMixin:
 
     def remove_relationship(self):
         """Remove a relationship between two containers."""
-        data = request.get_json()
-        container_id = data["container_id"]
-        source_id = data["source_id"]
-        target_id = data["target_id"]
+        data = request.get_json() or {}
+        container_id = data.get("container_id")
+        source_id = data.get("source_id")
+        target_id = data.get("target_id")
 
+        if not container_id or not source_id or not target_id:
+            return jsonify({"message": "container_id, source_id and target_id are required"}), 400
+
+        # Prefer operating directly on the repository node
+        repository = getattr(self.container_class, "repository", None)
+        if repository is not None:
+            try:
+                removed = repository.remove_relationship(container_id, str(source_id), str(target_id))
+                if removed:
+                    # Keep in-memory instance consistent if it exists, but don't persist
+                    container_mem = self.container_class.get_instance_by_id(container_id)
+                    if container_mem:
+                        container_mem.remove_relationship(source_id, target_id)
+                    return jsonify({"message": "Relationship removed successfully"})
+            except Exception as e:
+                logging.error("Repository remove_relationship failed: %s", e)
+
+        # Fallback: update in-memory instance if loaded, then persist
         container = self.container_class.get_instance_by_id(container_id)
-        # source = self.container_class.get_instance_by_id(source_id)
-        # target = self.container_class.get_instance_by_id(target_id)
         if not container:
+            # Couldn’t remove via repository and container not in memory
             return jsonify({"message": "Container not found"}), 404
-        # TODO: Fix the remove_relationship method in baseContainer to amend the repository database directly as the containerId might not be in memory
+
         container.remove_relationship(source_id, target_id)
+
+        if repository is not None:
+            try:
+                repository.save_node(container)
+            except Exception as e:
+                logging.error("Failed to save node after relationship removal: %s", e)
+
         return jsonify({"message": "Relationship removed successfully"})
 
     def get_parents(self, id):
