@@ -105,7 +105,7 @@ class baseTools:
     def delete(self):
         # Remove the container from the list of containers
         self.remove_container_everywhere(self)
-        print(f"Deleted container: {self.getValue("Name")}")
+        print(f"Deleted container: {self.getValue('Name')}")
 
     @classmethod
     def remove_container_everywhere(cls, container_obj):
