@@ -1,5 +1,5 @@
-# Use the official Python image
-FROM python:alpine
+# Use a Debian-based Python image to leverage manylinux wheels
+FROM python:3.11-slim
 ARG BUILDKIT_INLINE_CACHE=1
 
 # Set env for clearer logs
@@ -8,9 +8,10 @@ ENV PYTHONUNBUFFERED=1
 # Set the working directory
 WORKDIR /app
 
-# Install dependencies (including the Git-based package)
+# Install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
 
 # Copy the Flask app
 COPY . .
