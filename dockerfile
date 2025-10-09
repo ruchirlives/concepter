@@ -16,8 +16,8 @@ RUN pip install --upgrade pip \
 # Copy the Flask app
 COPY . .
 
-# Add a user called "appuser"
-RUN adduser -D appuser
+# Add a non-root user (Debian syntax)
+RUN adduser --disabled-password --gecos "" appuser
 
 # Use that user instead of root
 USER appuser
