@@ -155,7 +155,7 @@ class baseTools:
 
     def setPosition(self, target, position):
         # Set the position of the target container
-        # print(f"Setting position of {target.getValue("Name")} to {position}")
+        # print(f"Setting position of {target.getValue('Name')} to {position}")
         for i, (container, pos) in enumerate(self.containers):
             if container == target:
                 self.containers[i] = (container, position)

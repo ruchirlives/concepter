@@ -125,7 +125,7 @@ class ProjectContainer(ConceptContainer):
                 )
 
         exporter = MermaidGanttExporter()
-        exporter.set_title(f"Gantt Diagram for {self.getValue("Name")}")
+        exporter.set_title(f"Gantt Diagram for {self.getValue('Name')}")
         exporter.set_date_format("YYYY-MM-DD")
 
         top_container = self
