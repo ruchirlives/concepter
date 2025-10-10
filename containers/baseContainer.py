@@ -103,8 +103,9 @@ class BaseContainer(Container):
         return "WORKED"
 
     @classmethod
-    def save_nodes_to_db(cls, nodes: List[Any]) -> str:
-        """Save a list of container instances to storage."""
+    def save_nodes_to_db(cls, nodeIds: List[Any]) -> str:
+        """Save a list of container instances to storage based on ids."""
+        nodes = [c for c in cls.instances if c.getValue("id") in nodeIds]
         if cls.repository is None:
             raise RuntimeError("ContainerRepository not configured")
         cls.repository.save_nodes(nodes)

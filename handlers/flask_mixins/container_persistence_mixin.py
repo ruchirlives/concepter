@@ -21,8 +21,8 @@ class ContainerPersistenceMixin:
     def save_nodes(self):
         """Save all nodes to database."""
         data = request.get_json()
-        nodes = data["nodes"]
-        self.container_class.save_nodes_to_db(nodes)
+        nodeIds = data["nodeIds"]
+        self.container_class.save_nodes_to_db(nodeIds)
         return jsonify({"message": "Nodes saved successfully"})
 
     def save_containers(self):
