@@ -43,6 +43,11 @@ class ContainerRepository(ABC):
         pass
 
     @abstractmethod
+    def save_nodes(self, nodes: List[Any]) -> None:
+        """Persist a list of container instances."""
+        pass
+
+    @abstractmethod
     def delete_project(self, name: str) -> bool:
         """Delete a project by name. Returns True if successful, False otherwise."""
         pass

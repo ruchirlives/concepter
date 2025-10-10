@@ -103,6 +103,14 @@ class BaseContainer(Container):
         return "WORKED"
 
     @classmethod
+    def save_nodes_to_db(cls, nodes: List[Any]) -> str:
+        """Save a list of container instances to storage."""
+        if cls.repository is None:
+            raise RuntimeError("ContainerRepository not configured")
+        cls.repository.save_nodes(nodes)
+        return "WORKED"
+
+    @classmethod
     def delete_project_from_db(cls, project_name: str) -> bool:
         """Delete a project from storage."""
         if cls.repository is None:

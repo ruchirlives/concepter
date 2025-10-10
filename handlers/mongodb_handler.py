@@ -458,6 +458,18 @@ class MongoContainerRepository(ContainerRepository):
             upsert=True,
         )
 
+    def save_nodes(self, nodes: List[Any]) -> None:
+        """Persist a list of container instances."""
+        ops = []
+        for c in nodes:
+            doc = c.serialize_node_info()
+            ops.append(UpdateOne({"_id": doc["_id"]}, {"$set": doc}, upsert=True))
+        if ops:
+            self.NODES.bulk_write(ops, ordered=False)
+            print(f"✅ Saved/Updated {len(ops)} nodes successfully")
+        else:
+            print("⚠️ No nodes to save")
+
     def delete_project(self, name: str) -> bool:
         result = self.COLL.delete_one({"name": name})
         return result.deleted_count > 0

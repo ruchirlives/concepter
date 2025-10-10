@@ -9,6 +9,7 @@ class ContainerPersistenceMixin:
         """Setup routes for container persistence operations."""
         self.app.add_url_rule("/save_containers", "save_containers", self.save_containers, methods=["POST"])
         self.app.add_url_rule("/load_containers", "load_containers", self.load_containers, methods=["POST"])
+        self.app.add_url_rule("/save_nodes", "save_nodes", self.save_nodes, methods=["POST"])
         self.app.add_url_rule("/import_containers", "import_containers", self.import_containers, methods=["POST"])
         self.app.add_url_rule("/export_selected", "export_selected", self.export_containers, methods=["POST"])
         self.app.add_url_rule("/export_branch", "export_branch", self.export_branch, methods=["POST"])
@@ -16,6 +17,13 @@ class ContainerPersistenceMixin:
             "/get_loadable_containers", "get_loadable_containers", self.get_loadable_containers, methods=["GET"]
         )
         self.app.add_url_rule("/delete_project", "delete_project", self.delete_project, methods=["POST"])
+
+    def save_nodes(self):
+        """Save all nodes to database."""
+        data = request.get_json()
+        nodes = data["nodes"]
+        self.container_class.save_nodes_to_db(nodes)
+        return jsonify({"message": "Nodes saved successfully"})
 
     def save_containers(self):
         """Save all containers to database."""
