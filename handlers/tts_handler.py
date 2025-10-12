@@ -148,7 +148,6 @@ end
 
     # Add a custom board as the first object
     custom_board = {
-        "GUID": "53e8a0",
         "Name": "Custom_Board",
         "Transform": {
             "posX": 0.0,
@@ -182,9 +181,9 @@ end
         "SaveName": "Concept Pawns Board",
         "GameMode": "",
         "Gravity": 0.5,
-        "PlayArea": 200,
+        "PlayArea": 0.5,
         "Date": str(date.today()),
-        "Table": "Table_Big",
+        "Table": "Table_Square",
         "Sky": "Sky_Museum",
         "Rules": "",
         "LuaScript": global_lua,
