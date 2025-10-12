@@ -18,7 +18,7 @@ SAVE_PATH = os.path.join(
 # Deterministic color palette to map discovered tags
 DEFAULT_COLOR = [1.0, 1.0, 1.0]
 
-PAWN_NAME = "Chess_Pawn"  # use a known built-in prefab
+PAWN_NAME = "PlayerPawn"  # use a known built-in prefab
 
 
 def lua_for_tags(tags):
@@ -151,30 +151,29 @@ end
         "Name": "Custom_Board",
         "Transform": {
             "posX": 0.0,
-            "posY": 0.9220247,
+            "posY": 0.0,
             "posZ": 0.0,
             "rotX": 0.0,
-            "rotY": 180.0,
+            "rotY": 0.0,
             "rotZ": 0.0,
-            "scaleX": 2.275,
-            "scaleY": 2.275,
-            "scaleZ": 2.275,
+            "scaleX": 7,
+            "scaleY": 1,
+            "scaleZ": 7,
         },
         "Nickname": "Concept Board",
         "Description": "",
         "GMNotes": "",
         "AltLookAngle": {"x": 0.0, "y": 0.0, "z": 0.0},
         "ColorDiffuse": {"r": 1.0, "g": 1.0, "b": 1.0, "a": 1.0},
-        "Locked": False,
+        "Locked": True,
         "Grid": False,
-        "Snap": True,
-        "Autoraise": True,
+        "Snap": False,
+        "Autoraise": False,
         "Sticky": False,
-        "Tooltip": True,
+        "Tooltip": False,
         "LuaScript": "",
         "LuaScriptState": "",
         "XmlUI": "",
-        "CustomImage": {"ImageURL": "", "ImageSecondaryURL": "", "WidthScale": 0.1},
     }
 
     save_data = {
@@ -183,7 +182,7 @@ end
         "Gravity": 0.5,
         "PlayArea": 0.5,
         "Date": str(date.today()),
-        "Table": "Table_Square",
+        "Table": "None",
         "Sky": "Sky_Museum",
         "Rules": "",
         "LuaScript": global_lua,
