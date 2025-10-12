@@ -37,9 +37,15 @@ def pawn_for_container(c, tag_color, pos_provider=None):
     first_tag = tags[0] if tags else "default"
     color = tag_color(first_tag)
 
-    # Always use layout provider; container 'z' is an embedding, not a position
-    px, py, pz = pos_provider(c) if pos_provider else (0.0, 0.6, 0.0)
-    posX, posY, posZ = float(px), float(py), float(pz)
+    z = c.getValue("z") or [None, None, None]
+    has_any = isinstance(z, (list, tuple)) and any(v is not None for v in z)
+    if has_any:
+        posX = float(z[0]) if len(z) > 0 and z[0] is not None else 0.0
+        posY = float(z[1]) if len(z) > 1 and z[1] is not None else 1.0
+        posZ = float(z[2]) if len(z) > 2 and z[2] is not None else 0.0
+    else:
+        px, py, pz = pos_provider(c) if pos_provider else (0.0, 1.0, 0.0)
+        posX, posY, posZ = float(px), float(py), float(pz)
 
     return {
         "Name": PAWN_NAME,
@@ -59,7 +65,7 @@ def pawn_for_container(c, tag_color, pos_provider=None):
         "GMNotes": "",
         "AltLookAngle": {"x": 0.0, "y": 0.0, "z": 0.0},
         "ColorDiffuse": {"r": color[0], "g": color[1], "b": color[2], "a": 1.0},
-        "Locked": False,
+        "Locked": True,
         "Grid": False,
         "Snap": False,
         "Autoraise": False,
@@ -114,20 +120,8 @@ end
         groups.setdefault(key, []).append(c)
 
     ordered_keys = sorted(groups.keys())
-
-    def stable_id(obj) -> str:
-        try:
-            if hasattr(obj, 'getId'):
-                return str(obj.getId())
-        except Exception:
-            pass
-        return str(id(obj))
-
-    index_in_group = {}
-    for k in ordered_keys:
-        index_in_group[k] = {}
-        for i, obj in enumerate(groups[k]):
-            index_in_group[k][stable_id(obj)] = i
+    index_in_group = {k: { (obj.getId() if hasattr(obj,'getId') else id(obj)): i }
+                      for k in ordered_keys for i, obj in enumerate(groups[k])}
 
     cols = 8
     dx = 8.0
@@ -138,8 +132,8 @@ end
         tags = c.getValue("Tags") or []
         key = (tags[0] if tags else "untagged").strip().lower() or "untagged"
         gi = ordered_keys.index(key)
-        cid = stable_id(c)
-        i = index_in_group.get(key, {}).get(cid, 0)
+        cid = c.getId() if hasattr(c, 'getId') else id(c)
+        i = index_in_group[key][cid]
         row = i // cols
         col = i % cols
         x = (col - (cols - 1) / 2.0) * dx
@@ -150,9 +144,9 @@ end
         "SaveName": "Concept Pawns Board",
         "GameMode": "",
         "Gravity": 0.5,
-        "PlayArea": 200,
+        "PlayArea": 100,
         "Date": str(date.today()),
-        "Table": "Table_Big",
+        "Table": "Table_Square",
         "Sky": "Sky_Museum",
         "Rules": "",
         "LuaScript": global_lua,
@@ -169,3 +163,4 @@ end
 __all__ = [
     "export_pawns_to_json",
 ]
+
