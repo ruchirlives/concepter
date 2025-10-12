@@ -1,5 +1,6 @@
 from flask import jsonify, request, send_file, send_from_directory
 import os
+from handlers.tts_handler import export_pawns_to_json
 
 
 class ContainerExportMixin:
@@ -11,6 +12,7 @@ class ContainerExportMixin:
         self.app.add_url_rule("/get_gantt", "get_gantt", self.export_gantt, methods=["POST"])
         self.app.add_url_rule("/get_docx", "get_word_doc", self.get_docx, methods=["POST"])
         self.app.add_url_rule("/get_onenote", "get_onenote", self.get_onenote, methods=["POST"])
+        self.app.add_url_rule("/export_tts", "export_tts", self.export_tts, methods=["POST"])
 
     def export_mermaid(self):
         """Export container as Mermaid diagram."""
@@ -62,3 +64,32 @@ class ContainerExportMixin:
             onenote_content = container.get_onenote()
             return jsonify({"onenote": onenote_content})
         return jsonify({"onenote": "Container not found"})
+
+    def export_tts(self):
+        """Export ConceptContainer instances to a Tabletop Simulator save JSON.
+
+        Optional JSON body fields:
+        - container_ids: list[str] to limit which containers are exported
+        - save_path: override default save location
+        """
+        data = request.get_json(silent=True) or {}
+        container_ids = data.get("container_ids")
+        save_path = data.get("save_path")
+
+        containers = None
+        if container_ids:
+            containers = []
+            for cid in container_ids:
+                c = self.container_class.get_instance_by_id(cid)
+                if c:
+                    containers.append(c)
+
+        try:
+            count, path = export_pawns_to_json(containers=containers, save_path=save_path)
+            return jsonify({
+                "ok": True,
+                "exported": count,
+                "path": path,
+            })
+        except Exception as e:
+            return jsonify({"ok": False, "error": str(e)}), 400
