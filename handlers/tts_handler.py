@@ -3,6 +3,7 @@ import os
 from datetime import date
 import hashlib
 import colorsys
+import math
 from containers.conceptContainer import ConceptContainer
 
 # -----------------------------------------------------
@@ -58,6 +59,7 @@ def pawn_for_container(c, tag_color, pos_provider=None):
     name = c.getValue("Name")
     desc = c.getValue("Description") or ""
     tags = c.getValue("Tags") or []
+    guid = str(c.getValue("id") or "")
 
     first_tag = tags[0] if tags else "default"
     color = tag_color(first_tag)
@@ -66,7 +68,14 @@ def pawn_for_container(c, tag_color, pos_provider=None):
     px, py, pz = pos_provider(c) if pos_provider else (0.0, 0.6, 0.0)
     posX, posY, posZ = float(px), float(py), float(pz)
 
-    return {
+    # Scale uniformly based on number of children
+    try:
+        child_count = len(getattr(c, "containers", []) or [])
+    except Exception:
+        child_count = 0
+    scale_factor = min(8, 1.0 + 0.6 * math.sqrt(child_count))
+
+    pawn = {
         "Name": PAWN_NAME,
         "Nickname": name,
         "Description": desc,
@@ -77,9 +86,9 @@ def pawn_for_container(c, tag_color, pos_provider=None):
             "rotX": 0.0,
             "rotY": 0.0,
             "rotZ": 0.0,
-            "scaleX": 1.0,
-            "scaleY": 1.0,
-            "scaleZ": 1.0,
+            "scaleX": scale_factor,
+            "scaleY": scale_factor,
+            "scaleZ": scale_factor,
         },
         "GMNotes": "",
         "AltLookAngle": {"x": 0.0, "y": 0.0, "z": 0.0},
@@ -93,9 +102,12 @@ def pawn_for_container(c, tag_color, pos_provider=None):
         "LuaScriptState": "",
         "XmlUI": "",
     }
+    if guid:
+        pawn["GUID"] = guid
+    return pawn
 
 
-def export_pawns_to_json(containers=None, save_path: str | None = None):
+def export_pawns_to_json(containers=None, save_path: str | None = None, update: bool = True):
     """Export ConceptContainer instances to a TTS save JSON file.
 
     Returns a tuple (count, path) on success.
@@ -231,6 +243,35 @@ end
 
     target_path = save_path or SAVE_PATH
     os.makedirs(os.path.dirname(target_path), exist_ok=True)
+
+    if update and os.path.isfile(target_path):
+        try:
+            with open(target_path, "r", encoding="utf-8") as f:
+                existing = json.load(f)
+            existing_states = existing.get("ObjectStates", [])
+            # Keep all non-pawn objects as-is
+            others = [o for o in existing_states if o.get("Name") != PAWN_NAME]
+            # Build dict of existing pawns by GUID (only those that have GUID)
+            existing_pawns = {o.get("GUID"): o for o in existing_states if o.get("Name") == PAWN_NAME and o.get("GUID")}
+            # Build new pawns from containers and upsert by GUID (or replace if no GUID)
+            new_pawns_list = [pawn_for_container(c, tag_color, pos_provider) for c in containers]
+            for p in new_pawns_list:
+                gid = p.get("GUID")
+                if gid:
+                    existing_pawns[gid] = p
+                else:
+                    # No GUID: append as unmanaged new pawn
+                    others.append(p)
+            # Reassemble: others + updated pawns (preserve order of others)
+            merged_states = others + list(existing_pawns.values())
+            existing["ObjectStates"] = merged_states
+            with open(target_path, "w", encoding="utf-8") as f:
+                json.dump(existing, f, indent=2)
+            return len(new_pawns_list), target_path
+        except Exception:
+            # Fall back to fresh write on any error
+            pass
+
     with open(target_path, "w", encoding="utf-8") as f:
         json.dump(save_data, f, indent=2)
     return len(containers), target_path
