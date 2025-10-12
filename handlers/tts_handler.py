@@ -28,6 +28,28 @@ def lua_for_tags(tags):
     return "\n".join([f"self.addTag('{t}')" for t in tags])
 
 
+def lua_label_script(name: str) -> str:
+    # Always-visible world-space label attached to object
+    safe_name = (name or "").replace("\\", "\\\\").replace("\"", "\\\"")
+    return f'''
+function onLoad()
+    local xml = [[
+    <Defaults>
+      <Text fontSize="24" color="#FFFFFF" outline="#000000" />
+    </Defaults>
+    <Panel id="ws_root" width="400" height="50" rectAlignment="MiddleCenter" allowDragging="false" pointerBlocker="false" worldSpace="true">
+      <Text id="ws_label" text="{safe_name}" alignment="MiddleCenter" />
+    </Panel>
+    ]]
+    self.UI.setXml(xml)                 -- attach world-space UI to this object
+    -- Place panel above the object using local (object) position in meters
+    self.UI.setAttribute('ws_root', 'position', '0 1.2 0')
+    self.UI.setAttribute('ws_root', 'rotation', '0 0 0')
+    self.UI.setAttribute('ws_root', 'scale', '1 1 1')
+end
+'''
+
+
 def pawn_for_container(c, tag_color, pos_provider=None):
     """Convert one ConceptContainer to a pawn object."""
     name = c.getValue("Name")
@@ -64,7 +86,7 @@ def pawn_for_container(c, tag_color, pos_provider=None):
         "Snap": False,
         "Autoraise": False,
         "Sticky": False,
-        "LuaScript": lua_for_tags(tags),
+        "LuaScript": (lua_for_tags(tags)).strip(),
         "LuaScriptState": "",
         "XmlUI": "",
     }
@@ -180,7 +202,7 @@ end
         "SaveName": "Concept Pawns Board",
         "GameMode": "",
         "Gravity": 0.5,
-        "PlayArea": 0.5,
+        "PlayArea": 2.0,
         "Date": str(date.today()),
         "Table": "Table_None",
         "Sky": "Sky_Museum",
