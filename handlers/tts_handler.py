@@ -14,7 +14,10 @@ SAVE_PATH = os.path.join(
     os.environ.get('HOME') + '/My Games/Tabletop Simulator/Saves',
     SAVE_NAME,
 )
-
+MAP_PATH = os.path.join(
+    os.environ.get('HOME') + '/My Games/Tabletop Simulator/Saves/Saved Objects',
+    "map-export.png",
+)
 # Deterministic color palette to map discovered tags
 DEFAULT_COLOR = [1.0, 1.0, 1.0]
 
@@ -176,7 +179,7 @@ end
             "posY": 0.0,
             "posZ": 0.0,
             "rotX": 0.0,
-            "rotY": 0.0,
+            "rotY": 180.0,
             "rotZ": 0.0,
             "scaleX": 7,
             "scaleY": 1,
@@ -197,6 +200,7 @@ end
         "LuaScript": "",
         "LuaScriptState": "",
         "XmlUI": "",
+        "CustomImage": {"ImageURL": MAP_PATH, "ImageSecondaryURL": "", "ImageScalar": 1.0},
     }
 
     save_data = {
