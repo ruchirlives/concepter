@@ -182,7 +182,7 @@ end
         "Gravity": 0.5,
         "PlayArea": 0.5,
         "Date": str(date.today()),
-        "Table": "None",
+        "Table": "Table_None",
         "Sky": "Sky_Museum",
         "Rules": "",
         "LuaScript": global_lua,
