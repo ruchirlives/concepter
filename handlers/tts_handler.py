@@ -146,6 +146,38 @@ end
         z = gi * (dz * 4) + row * dz
         return x, base_y, z
 
+    # Add a custom board as the first object
+    custom_board = {
+        "GUID": "53e8a0",
+        "Name": "Custom_Board",
+        "Transform": {
+            "posX": 0.0,
+            "posY": 0.9220247,
+            "posZ": 0.0,
+            "rotX": 0.0,
+            "rotY": 180.0,
+            "rotZ": 0.0,
+            "scaleX": 2.275,
+            "scaleY": 2.275,
+            "scaleZ": 2.275,
+        },
+        "Nickname": "Concept Board",
+        "Description": "",
+        "GMNotes": "",
+        "AltLookAngle": {"x": 0.0, "y": 0.0, "z": 0.0},
+        "ColorDiffuse": {"r": 1.0, "g": 1.0, "b": 1.0, "a": 1.0},
+        "Locked": False,
+        "Grid": False,
+        "Snap": True,
+        "Autoraise": True,
+        "Sticky": False,
+        "Tooltip": True,
+        "LuaScript": "",
+        "LuaScriptState": "",
+        "XmlUI": "",
+        "CustomImage": {"ImageURL": "", "ImageSecondaryURL": "", "WidthScale": 0.1},
+    }
+
     save_data = {
         "SaveName": "Concept Pawns Board",
         "GameMode": "",
@@ -156,7 +188,7 @@ end
         "Sky": "Sky_Museum",
         "Rules": "",
         "LuaScript": global_lua,
-        "ObjectStates": [pawn_for_container(c, tag_color, pos_provider) for c in containers],
+        "ObjectStates": [custom_board] + [pawn_for_container(c, tag_color, pos_provider) for c in containers],
     }
 
     target_path = save_path or SAVE_PATH
