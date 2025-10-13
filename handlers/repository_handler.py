@@ -5,6 +5,11 @@ from typing import List, Any, Dict, Optional, Tuple
 class ContainerRepository(ABC):
 
     @abstractmethod
+    def get_model_by_z(self, z_value: float, tolerance: float = 0.1) -> List[Any]:
+        """Retrieve containers whose position.z is within the specified tolerance of z_value."""
+        pass
+
+    @abstractmethod
     def search_position_z(self, searchTerm: str, top_n: int = 10) -> list:
         """Vector search: Find containers whose position.z is most similar to the searchTerm embedding.
         Returns a merged single list of parent_ids and container_ids (flat list, top_n results)."""

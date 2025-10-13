@@ -5,35 +5,19 @@ import json
 import numpy as np
 from pymongo import MongoClient, UpdateOne
 from dotenv import load_dotenv
-from typing import List, Any, Dict, Optional, Tuple, Set
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union, Set, Iterable
 from bson import Binary
 from handlers.repository_handler import ContainerRepository
 from containers.baseContainer import BaseContainer
 from handlers.openai_handler import openai_handler
 import logging
+import math
+from collections.abc import Iterable
+from bson import ObjectId
 
+NumberList = Sequence[Union[int, float]]
 
 class MongoContainerRepository(ContainerRepository):
-
-    def remove_relationship(self, container_id: Any, source_id: str, target_id: str) -> bool:
-        """Remove a relationship from a node document by exact source/target match.
-
-        Returns True if a relationship entry was removed, False otherwise.
-        """
-        try:
-            src = str(source_id) if source_id is not None else None
-            tgt = str(target_id) if target_id is not None else None
-            if src is None or tgt is None:
-                return False
-
-            res = self.NODES.update_one(
-                {"_id": container_id},
-                {"$pull": {"relationships": {"source": src, "target": tgt}}},
-            )
-            return getattr(res, "modified_count", 0) > 0
-        except Exception as e:
-            logging.error("Failed to remove relationship for node %s: %s", container_id, e)
-            return False
 
     def __init__(self) -> None:
         # Resolve base and project directories
@@ -99,7 +83,78 @@ class MongoContainerRepository(ContainerRepository):
         self.db = self.client["Concepter"]
         self.NODES = self.db["nodes"]
         self.COLL = self.db["collections"]
+        self.MODELS = self.db["MODELS"]
         logging.info("Connected to MongoDB.")
+
+    def get_top_by_z(self, z_vector: NumberList) -> Optional[Dict[str, Any]]:
+        """Return the top matching model document for the supplied embedding."""
+
+        z = self._validate_vector(z_vector)
+        if z is None:
+            raise ValueError("z_vector must be a non-empty sequence of numbers")
+
+        cursor = self.MODELS.find(
+            {"z": {"$type": "array", "$ne": []}},
+            {"name": 1, "link": 1, "z": 1},
+        )
+
+        best: Optional[Dict[str, Any]] = None
+        best_score = -1.0
+
+        for doc in cursor:
+            model_z = doc.get("z")
+            if not isinstance(model_z, list) or not model_z:
+                continue
+            if len(model_z) != len(z):
+                continue
+            score = self._cosine_similarity(z, model_z)
+            if score > best_score:
+                best_score = score
+                best = doc
+
+        if not best:
+            return None
+
+        return {
+            "name": best.get("name"),
+            "url": best.get("link"),
+            "score": best_score,
+        }
+
+    def get_model_from_id(self, node_id: Union[str, ObjectId]) -> Optional[Dict[str, Any]]:
+        """Resolve a node by id and return the closest matching model."""
+
+        object_id = self._coerce_object_id(node_id)
+        node = self.NODES.find_one({"_id": object_id}, {"values.z": 1})
+        if not node:
+            return None
+
+        values = node.get("values") or {}
+        z_vector = values.get("z")
+        if not isinstance(z_vector, list) or not z_vector:
+            return None
+
+        return self.get_top_by_z(z_vector)
+
+    def remove_relationship(self, container_id: Any, source_id: str, target_id: str) -> bool:
+        """Remove a relationship from a node document by exact source/target match.
+
+        Returns True if a relationship entry was removed, False otherwise.
+        """
+        try:
+            src = str(source_id) if source_id is not None else None
+            tgt = str(target_id) if target_id is not None else None
+            if src is None or tgt is None:
+                return False
+
+            res = self.NODES.update_one(
+                {"_id": container_id},
+                {"$pull": {"relationships": {"source": src, "target": tgt}}},
+            )
+            return getattr(res, "modified_count", 0) > 0
+        except Exception as e:
+            logging.error("Failed to remove relationship for node %s: %s", container_id, e)
+            return False
 
     def search_position_z(self, searchTerm: str, top_n=10):
         """Vector search: Find containers whose position.z is most similar to the searchTerm embedding.
@@ -542,3 +597,45 @@ class MongoContainerRepository(ContainerRepository):
         except Exception as e:
             print(f"❌ Error deleting transition metadata: {e}")
             return False
+
+    @staticmethod
+    def _coerce_object_id(value: Union[str, ObjectId]) -> ObjectId:
+        if isinstance(value, ObjectId):
+            return value
+        if not isinstance(value, str):
+            raise ValueError("node_id must be a string or ObjectId")
+        try:
+            return ObjectId(value)
+        except Exception as exc:  # pragma: no cover - defensive programming
+            raise ValueError("Invalid node id") from exc
+
+    @staticmethod
+    def _validate_vector(vector: Any) -> Optional[List[float]]:
+        if not isinstance(vector, Iterable):
+            return None
+        result: List[float] = []
+        for value in vector:
+            try:
+                result.append(float(value))
+            except (TypeError, ValueError):
+                return None
+        if not result:
+            return None
+        return result
+
+    @staticmethod
+    def _cosine_similarity(a: List[float], b: List[float]) -> float:
+        dot = sum(x * y for x, y in zip(a, b))
+        norm_a = math.sqrt(sum(x * x for x in a))
+        norm_b = math.sqrt(sum(y * y for y in b))
+        if norm_a == 0 or norm_b == 0:
+            return -1.0
+        return dot / (norm_a * norm_b)
+
+    @staticmethod
+    def _normalize_string(value: Any) -> str:
+        if isinstance(value, str):
+            return value.strip()
+        if value is None:
+            return ""
+        return str(value).strip()
