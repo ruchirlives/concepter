@@ -32,30 +32,8 @@ def lua_for_tags(tags):
     return "\n".join([f"self.addTag('{t}')" for t in tags])
 
 
-def lua_label_script(name: str) -> str:
-    # Always-visible world-space label attached to object
-    safe_name = (name or "").replace("\\", "\\\\").replace("\"", "\\\"")
-    return f'''
-function onLoad()
-    local xml = [[
-    <Defaults>
-      <Text fontSize="24" color="#FFFFFF" outline="#000000" />
-    </Defaults>
-    <Panel id="ws_root" width="400" height="50" rectAlignment="MiddleCenter" allowDragging="false" pointerBlocker="false" worldSpace="true">
-      <Text id="ws_label" text="{safe_name}" alignment="MiddleCenter" />
-    </Panel>
-    ]]
-    self.UI.setXml(xml)                 -- attach world-space UI to this object
-    -- Place panel above the object using local (object) position in meters
-    self.UI.setAttribute('ws_root', 'position', '0 1.2 0')
-    self.UI.setAttribute('ws_root', 'rotation', '0 0 0')
-    self.UI.setAttribute('ws_root', 'scale', '1 1 1')
-end
-'''
-
-
-def pawn_for_container(c, tag_color, pos_provider=None):
-    """Convert one ConceptContainer to a pawn object."""
+def model_for_container(c, tag_color, pos_provider=None):
+    """Convert one ConceptContainer to a TTS Custom_Model object using c.get_model()."""
     name = c.getValue("Name")
     desc = c.getValue("Description") or ""
     tags = c.getValue("Tags") or []
@@ -64,31 +42,70 @@ def pawn_for_container(c, tag_color, pos_provider=None):
     first_tag = tags[0] if tags else "default"
     color = tag_color(first_tag)
 
-    # Always use layout provider; container 'z' is an embedding, not a position
     px, py, pz = pos_provider(c) if pos_provider else (0.0, 0.6, 0.0)
     posX, posY, posZ = float(px), float(py), float(pz)
 
-    # Scale uniformly based on number of children
+    # Determine scale from child count but apply to model scale
     try:
         child_count = len(getattr(c, "containers", []) or [])
     except Exception:
         child_count = 0
     scale_factor = min(8, 1.0 + 0.6 * math.sqrt(child_count))
 
-    pawn = {
-        "Name": PAWN_NAME,
-        "Nickname": name,
+    # Expect container to provide its model URLs or configuration
+    model = c.get_model() if hasattr(c, "get_model") else None
+    # Fallback to pawn if no model info
+    if not model:
+        return {
+            "Name": PAWN_NAME,
+            "Nickname": name,
+            "Description": desc,
+            "Transform": {
+                "posX": posX,
+                "posY": posY + 1,
+                "posZ": posZ,
+                "rotX": 0.0,
+                "rotY": 0.0,
+                "rotZ": 0.0,
+                "scaleX": scale_factor,
+                "scaleY": scale_factor,
+                "scaleZ": scale_factor,
+            },
+            "GMNotes": "",
+            "AltLookAngle": {"x": 0.0, "y": 0.0, "z": 0.0},
+            "ColorDiffuse": {"r": color[0], "g": color[1], "b": color[2], "a": 1.0},
+            "Locked": False,
+            "Grid": True,
+            "Snap": False,
+            "Autoraise": True,
+            "Sticky": False,
+            "LuaScript": (lua_for_tags(tags)).strip(),
+            "LuaScriptState": "",
+            "XmlUI": "",
+            **({"GUID": guid} if guid else {}),
+        }
+
+    # If model is a dict with expected fields, build a Custom_Model
+    mesh_url = model.get("url")
+    mesh_name = model.get("name")
+    type_flag = model.get("type") or "Custom_Model"
+    rot = model.get("rotation") or {"x": 0.0, "y": 0.0, "z": 0.0}
+    scl = model.get("scale") or {"x": scale_factor, "y": scale_factor, "z": scale_factor}
+
+    tts_obj = {
+        "Name": type_flag,
+        "Nickname": name or (mesh_name if mesh_name else "ConceptPawn"),
         "Description": desc,
         "Transform": {
             "posX": posX,
             "posY": posY + 1,
             "posZ": posZ,
-            "rotX": 0.0,
-            "rotY": 0.0,
-            "rotZ": 0.0,
-            "scaleX": scale_factor,
-            "scaleY": scale_factor,
-            "scaleZ": scale_factor,
+            "rotX": float(rot.get("x", 0.0)),
+            "rotY": float(rot.get("y", 0.0)),
+            "rotZ": float(rot.get("z", 0.0)),
+            "scaleX": float(scl.get("x", scale_factor)),
+            "scaleY": float(scl.get("y", scale_factor)),
+            "scaleZ": float(scl.get("z", scale_factor)),
         },
         "GMNotes": "",
         "AltLookAngle": {"x": 0.0, "y": 0.0, "z": 0.0},
@@ -101,10 +118,17 @@ def pawn_for_container(c, tag_color, pos_provider=None):
         "LuaScript": (lua_for_tags(tags)).strip(),
         "LuaScriptState": "",
         "XmlUI": "",
+        "CustomMesh": {
+            "MeshURL": mesh_url or "",
+            "Convex": True,
+            "MaterialIndex": 0,
+            "TypeIndex": 6,
+            "CastShadows": True,
+        },
     }
     if guid:
-        pawn["GUID"] = guid
-    return pawn
+        tts_obj["GUID"] = guid
+    return tts_obj
 
 
 def export_pawns_to_json(containers=None, save_path: str | None = None, update: bool = True):
@@ -238,7 +262,7 @@ end
             "ySize": 2.0,
             "PosOffset": {"x": 0.0, "y": 1.0, "z": 0.0},
         },
-        "ObjectStates": [custom_board] + [pawn_for_container(c, tag_color, pos_provider) for c in containers],
+        "ObjectStates": [custom_board] + [model_for_container(c, tag_color, pos_provider) for c in containers],
     }
 
     target_path = save_path or SAVE_PATH
@@ -249,12 +273,12 @@ end
             with open(target_path, "r", encoding="utf-8") as f:
                 existing = json.load(f)
             existing_states = existing.get("ObjectStates", [])
-            # Keep all non-pawn objects as-is
-            others = [o for o in existing_states if o.get("Name") != PAWN_NAME]
-            # Build dict of existing pawns by GUID (only those that have GUID)
-            existing_pawns = {o.get("GUID"): o for o in existing_states if o.get("Name") == PAWN_NAME and o.get("GUID")}
+            # Keep existing objects except those we manage and can upsert by GUID
+            others = [o for o in existing_states if not o.get("GUID")]
+            # Build dict by GUID for everything that has one (pawns or models)
+            existing_pawns = {o.get("GUID"): o for o in existing_states if o.get("GUID")}
             # Build new pawns from containers and upsert by GUID (or replace if no GUID)
-            new_pawns_list = [pawn_for_container(c, tag_color, pos_provider) for c in containers]
+            new_pawns_list = [model_for_container(c, tag_color, pos_provider) for c in containers]
             for p in new_pawns_list:
                 gid = p.get("GUID")
                 if gid:
