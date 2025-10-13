@@ -50,7 +50,7 @@ def model_for_container(c, tag_color, pos_provider=None):
         child_count = len(getattr(c, "containers", []) or [])
     except Exception:
         child_count = 0
-    scale_factor = min(8, 1.0 + 0.6 * math.sqrt(child_count))
+    scale_factor = min(8, 1.0 + 0.2 * math.sqrt(child_count))
 
     # Expect container to provide its model URLs or configuration
     model = c.get_model() if hasattr(c, "get_model") else None
@@ -122,7 +122,7 @@ def model_for_container(c, tag_color, pos_provider=None):
             "MeshURL": mesh_url or "",
             "Convex": True,
             "MaterialIndex": 0,
-            "TypeIndex": 6,
+            "TypeIndex": 1,
             "CastShadows": True,
         },
     }
