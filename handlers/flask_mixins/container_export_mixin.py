@@ -65,13 +65,6 @@ class ContainerExportMixin:
             return jsonify({"onenote": onenote_content})
         return jsonify({"onenote": "Container not found"})
 
-
-    def get_model(self):
-        """Get the model from repository handler."""
-        repo = self.get_repository_handler()
-        return repo.get_model_from_id(self.container_id)
-
-
     def export_tts(self):
         """Export ConceptContainer instances to a Tabletop Simulator save JSON.
 

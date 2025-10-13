@@ -118,6 +118,12 @@ class BaseContainer(Container):
             raise RuntimeError("ContainerRepository not configured")
         return cls.repository.delete_project(project_name)
 
+    def get_model(self):
+        """Get the model from repository handler."""
+        if self.repository is None:
+            raise RuntimeError("ContainerRepository not configured")
+        return self.repository.get_model_from_id(self.getValue("id"))
+
     # Add and remove container by id methods
 
     # @classmethod

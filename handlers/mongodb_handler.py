@@ -124,8 +124,7 @@ class MongoContainerRepository(ContainerRepository):
     def get_model_from_id(self, node_id: Union[str, ObjectId]) -> Optional[Dict[str, Any]]:
         """Resolve a node by id and return the closest matching model."""
 
-        object_id = self._coerce_object_id(node_id)
-        node = self.NODES.find_one({"_id": object_id}, {"values.z": 1})
+        node = self.NODES.find_one({"_id": node_id}, {"values.z": 1})
         if not node:
             return None
 
@@ -597,17 +596,6 @@ class MongoContainerRepository(ContainerRepository):
         except Exception as e:
             print(f"❌ Error deleting transition metadata: {e}")
             return False
-
-    @staticmethod
-    def _coerce_object_id(value: Union[str, ObjectId]) -> ObjectId:
-        if isinstance(value, ObjectId):
-            return value
-        if not isinstance(value, str):
-            raise ValueError("node_id must be a string or ObjectId")
-        try:
-            return ObjectId(value)
-        except Exception as exc:  # pragma: no cover - defensive programming
-            raise ValueError("Invalid node id") from exc
 
     @staticmethod
     def _validate_vector(vector: Any) -> Optional[List[float]]:

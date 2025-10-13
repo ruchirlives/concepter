@@ -5,8 +5,13 @@ from typing import List, Any, Dict, Optional, Tuple
 class ContainerRepository(ABC):
 
     @abstractmethod
-    def get_model_by_z(self, z_value: float, tolerance: float = 0.1) -> List[Any]:
+    def get_top_by_z(self, z_vector) -> Optional[Dict[str, Any]]:
         """Retrieve containers whose position.z is within the specified tolerance of z_value."""
+        pass
+
+    @abstractmethod
+    def get_model_from_id(self, container_id: Any) -> Optional[Dict[str, Any]]:
+        """Retrieve the model dictionary for the container with the given id."""
         pass
 
     @abstractmethod
