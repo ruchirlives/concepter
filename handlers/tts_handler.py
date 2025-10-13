@@ -50,12 +50,12 @@ def model_for_container(c, tag_color, pos_provider=None):
         child_count = len(getattr(c, "containers", []) or [])
     except Exception:
         child_count = 0
-    scale_factor = min(8, 1.0 + 0.2 * math.sqrt(child_count))
 
     # Expect container to provide its model URLs or configuration
     model = c.get_model() if hasattr(c, "get_model") else None
     # Fallback to pawn if no model info
     if not model:
+        scale_factor = min(8, 1.0 + 0.6 * math.sqrt(child_count))
         return {
             "Name": PAWN_NAME,
             "Nickname": name,
@@ -90,6 +90,7 @@ def model_for_container(c, tag_color, pos_provider=None):
     mesh_name = model.get("name")
     type_flag = model.get("type") or "Custom_Model"
     rot = model.get("rotation") or {"x": 0.0, "y": 0.0, "z": 0.0}
+    scale_factor = min(2, 0.1 + 0.2 * math.sqrt(child_count))
     scl = model.get("scale") or {"x": scale_factor, "y": scale_factor, "z": scale_factor}
 
     tts_obj = {
