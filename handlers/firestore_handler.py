@@ -425,3 +425,20 @@ class FirestoreContainerRepository(ContainerRepository):
         self.collections_coll.document("transition_metadata_backup").set({"data": doc}, merge=True)
         doc_ref.delete()
         return True
+
+    def get_model_from_id(self, model_id: str) -> Optional[Dict[str, Any]]:
+        doc_ref = self.nodes_coll.document(str(model_id))
+        snap = doc_ref.get()
+        if not snap.exists:
+            return None
+        doc = snap.to_dict()
+        return doc
+    
+    def get_top_by_z(self, z_vector):
+        return super().get_top_by_z(z_vector)
+    
+    def remove_relationship(self, container_id, source_id, target_id):
+        return super().remove_relationship(container_id, source_id, target_id)
+
+    def save_nodes(self, nodes: List[Any]) -> None:
+        return super().save_nodes(nodes)
