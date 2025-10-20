@@ -114,6 +114,9 @@ class baseTools:
         for container in cls.instances:
             container.remove_container(container_obj)
 
+        # set tags to 'delete'
+        container_obj.setValue("tags", ["delete"])
+
     @classmethod
     def get_all_subcontainers(cls, container_id):
         container = cls.instances[container_id]
