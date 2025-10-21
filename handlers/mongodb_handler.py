@@ -17,6 +17,7 @@ from bson import ObjectId
 
 NumberList = Sequence[Union[int, float]]
 
+
 class MongoContainerRepository(ContainerRepository):
 
     def __init__(self) -> None:
@@ -56,11 +57,7 @@ class MongoContainerRepository(ContainerRepository):
 
         # If pem_path is not present or does not exist, try to source PEM from environment content
         if not pem_path or not os.path.exists(pem_path):
-            pem_content = (
-                os.getenv("MONGO_PEM_CONTENT")
-                or os.getenv("MONGO_CLIENT_PEM")
-                or os.getenv("MONGO_PEM")
-            )
+            pem_content = os.getenv("MONGO_PEM_CONTENT") or os.getenv("MONGO_CLIENT_PEM") or os.getenv("MONGO_PEM")
             if pem_content:
                 try:
                     # Cloud Run allows writing to /tmp
@@ -74,9 +71,7 @@ class MongoContainerRepository(ContainerRepository):
                     raise
 
         if not pem_path or not os.path.exists(pem_path):
-            raise FileNotFoundError(
-                "PEM file not found. Provide file via MONGO_CLOUD_PATH or set MONGO_PEM_CONTENT env."
-            )
+            raise FileNotFoundError("PEM file not found. Provide file via MONGO_CLOUD_PATH or set MONGO_PEM_CONTENT env.")
 
         # Connect to MongoDB and set instance collections
         self.client = MongoClient(mongo_url, tls=True, tlsCertificateKeyFile=pem_path)
@@ -195,9 +190,7 @@ class MongoContainerRepository(ContainerRepository):
             names_list.append(item["child_name"])
         return id_list, names_list
 
-    def find_relationship_influencers(
-        self, pairs: List[Tuple[str, str]]
-    ) -> Dict[str, List[Dict[str, Any]]]:
+    def find_relationship_influencers(self, pairs: List[Tuple[str, str]]) -> Dict[str, List[Dict[str, Any]]]:
         """Return containers whose relationships match any of the requested source/target pairs."""
 
         normalized_pairs: List[Tuple[str, str]] = []
@@ -221,10 +214,7 @@ class MongoContainerRepository(ContainerRepository):
             pair_key_map[(src, tgt)] = pair_key
             result[pair_key] = []
 
-        or_conditions = [
-            {"relationships": {"$elemMatch": {"source": src, "target": tgt}}}
-            for src, tgt in normalized_pairs
-        ]
+        or_conditions = [{"relationships": {"$elemMatch": {"source": src, "target": tgt}}} for src, tgt in normalized_pairs]
 
         query: Dict[str, Any]
         if len(or_conditions) == 1:
@@ -385,9 +375,7 @@ class MongoContainerRepository(ContainerRepository):
             children = []
             try:
                 for child in doc.get("containers", []):
-                    children.append(
-                        {"id": child.get("to"), "Name": child.get("Name"), "position": child.get("position")}
-                    )
+                    children.append({"id": child.get("to"), "Name": child.get("Name"), "position": child.get("position")})
             except Exception as e:
                 print(f"❌ Error processing child containers: {e}")
             results.append({"id": doc["_id"], "Name": doc.get("values", {}).get("Name"), "children": children})
@@ -645,4 +633,3 @@ class MongoContainerRepository(ContainerRepository):
         if value is None:
             return ""
         return str(value).strip()
-    
