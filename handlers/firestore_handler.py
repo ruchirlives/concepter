@@ -441,4 +441,19 @@ class FirestoreContainerRepository(ContainerRepository):
         return super().remove_relationship(container_id, source_id, target_id)
 
     def save_nodes(self, nodes: List[Any]) -> None:
-        return super().save_nodes(nodes)
+        # Batch save nodes
+        batch = self.client.batch()
+        for c in nodes:
+            raw = c.serialize_node_info()
+            doc = self._firestore_safe(raw)
+            nid = str(doc.get("_id"))
+            batch.set(self.nodes_coll.document(nid), doc)
+        batch.commit()
+    
+    def delete_nodes(self, node_ids: List[Any]) -> int:
+        # Batch delete nodes by their ids
+        batch = self.client.batch()
+        for node_id in node_ids:
+            batch.delete(self.nodes_coll.document(str(node_id)))
+        batch.commit()
+        return len(node_ids)
