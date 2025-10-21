@@ -191,6 +191,16 @@ class ConceptContainer(BaseContainer, StateTools):
         self.setValue("Name", name)
         return name
 
+    def convert_to_tag(self):
+        # Convert this container to a tag by removing all its relationships and adding its name as a tag to its children
+        for subcontainer in self.containers:
+            tags = subcontainer.getValue("Tags", [])
+            if self.getValue("Name") not in tags:
+                tags.append(self.getValue("Name"))
+                subcontainer.setValue("Tags", tags)
+
+        self.containers = []
+
     @classmethod
     def merge_containers(cls, containers):
         # Merge the containers into a new container

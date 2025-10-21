@@ -19,6 +19,8 @@ class ContainerCRUDMixin:
         self.app.add_url_rule(
             "/write_back_containers", "write_back_containers", self.write_back_containers, methods=["POST"]
         )
+        self.app.add_url_rule("/convert_to_tag/<id>", "convert_to_tag", self.convert_to_tag, methods=["POST"])
+
         # Add state management routes
         self.app.add_url_rule("/switch_state", "switch_state", self.switch_state, methods=["POST"])
         self.app.add_url_rule("/remove_state", "remove_state", self.remove_state, methods=["POST"])
@@ -33,6 +35,17 @@ class ContainerCRUDMixin:
         # Add route for nodes
         self.app.add_url_rule("/load_node", "load_node", self.load_node, methods=["POST"])
         self.app.add_url_rule("/search_nodes", "search_nodes", self.search_nodes, methods=["POST"])
+
+    def convert_to_tag(self):
+        """Convert a container to a tag by removing its relationships and adding its name as a tag to its children."""
+        data = request.get_json()
+        container_id = data.get("id")
+        container = self.container_class.get_instance_by_id(container_id)
+        if container:
+            container.convert_to_tag()
+            return jsonify({"message": "Container converted to tag successfully"})
+        else:
+            return jsonify({"message": "Container not found"}), 404
 
     def search_nodes(self):
         """API endpoint to search nodes by a search term."""
