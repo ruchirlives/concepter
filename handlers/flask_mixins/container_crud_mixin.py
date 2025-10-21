@@ -39,13 +39,12 @@ class ContainerCRUDMixin:
     def convert_to_tag(self):
         """Convert a container to a tag by removing its relationships and adding its name as a tag to its children."""
         data = request.get_json()
-        container_id = data.get("id")
-        container = self.container_class.get_instance_by_id(container_id)
-        if container:
-            container.convert_to_tag()
-            return jsonify({"message": "Container converted to tag successfully"})
-        else:
-            return jsonify({"message": "Container not found"}), 404
+        container_ids = data.get("containerIds", [])
+        for container_id in container_ids:
+            container = self.container_class.get_instance_by_id(container_id)
+            if container:
+                container.convert_to_tag()
+        return jsonify({"message": "Containers converted to tags successfully"})
 
     def search_nodes(self):
         """API endpoint to search nodes by a search term."""
