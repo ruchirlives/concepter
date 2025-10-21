@@ -203,7 +203,9 @@ class ContainerCRUDMixin:
             container = self.container_class.get_instance_by_id(containerId)
             if container:
                 self.container_class.remove_container_everywhere(container)
-        return jsonify({"message": "Containers deleted successfully"})
+
+        delete_nodes_count = self.container_class.repository.delete_nodes(containerIds)
+        return jsonify({"message": "Containers deleted successfully", "deleted_count": delete_nodes_count})
 
     def remove_containers(self):
         """Remove multiple containers by their IDs."""

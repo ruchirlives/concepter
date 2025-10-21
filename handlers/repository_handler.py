@@ -78,6 +78,11 @@ class ContainerRepository(ABC):
         pass
 
     @abstractmethod
+    def delete_nodes(self, node_ids: List[Any]) -> int:
+        """Delete nodes by their ids. Returns the count of deleted nodes."""
+        pass
+
+    @abstractmethod
     def find_relationship_influencers(
         self, pairs: List[Tuple[str, str]]
     ) -> Dict[str, List[Dict[str, Any]]]:

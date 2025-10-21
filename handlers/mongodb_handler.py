@@ -597,6 +597,24 @@ class MongoContainerRepository(ContainerRepository):
             print(f"❌ Error deleting transition metadata: {e}")
             return False
 
+    def delete_nodes(self, node_ids):
+        "Use MongoDb to delete nodes by their ids. Returns the count of deleted nodes."
+        result = self.COLL.delete_many({"_id": {"$in": node_ids}})
+
+        # Also remove references from any projects
+        self.COLL.update_many(
+            {"nodes.id": {"$in": node_ids}},
+            {"$pull": {"nodes": {"id": {"$in": node_ids}}}},
+        )
+
+        # Also remove references from any other nodes' containers.to
+        self.NODES.update_many(
+            {"containers.to": {"$in": node_ids}},
+            {"$pull": {"containers": {"to": {"$in": node_ids}}}},
+        )
+
+        return result.deleted_count
+
     @staticmethod
     def _validate_vector(vector: Any) -> Optional[List[float]]:
         if not isinstance(vector, Iterable):
@@ -627,3 +645,4 @@ class MongoContainerRepository(ContainerRepository):
         if value is None:
             return ""
         return str(value).strip()
+    
