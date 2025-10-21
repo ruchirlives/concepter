@@ -19,7 +19,7 @@ class ContainerCRUDMixin:
         self.app.add_url_rule(
             "/write_back_containers", "write_back_containers", self.write_back_containers, methods=["POST"]
         )
-        self.app.add_url_rule("/convert_to_tag/<id>", "convert_to_tag", self.convert_to_tag, methods=["POST"])
+        self.app.add_url_rule("/convert_to_tag", "convert_to_tag", self.convert_to_tag, methods=["POST"])
 
         # Add state management routes
         self.app.add_url_rule("/switch_state", "switch_state", self.switch_state, methods=["POST"])
