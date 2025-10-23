@@ -1,6 +1,6 @@
 from helpers.random_names import random_names
 from container_base import Container, baseTools
-from typing import List, Any
+from typing import List, Any, Optional
 from handlers.repository_handler import ContainerRepository
 import datetime
 
@@ -13,6 +13,7 @@ class BaseContainer(Container):
 
     # Class variables
     random_names = random_names
+    project_state_variables: Optional[List[Any]] = None
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -24,7 +25,22 @@ class BaseContainer(Container):
             raise RuntimeError("ContainerRepository not configured")
         # Clear all in-memory instances before loading new project
         baseTools.instances.clear()
-        baseTools.instances = cls.repository.load_project(project_name)
+        load_result = cls.repository.load_project(project_name)
+
+        if isinstance(load_result, tuple):
+            containers, state_variables = load_result
+        else:
+            containers, state_variables = load_result, None
+
+        containers_list = list(containers) if not isinstance(containers, list) else containers
+        baseTools.instances = containers_list
+
+        if isinstance(state_variables, list):
+            cls.project_state_variables = list(state_variables)
+        elif state_variables is None:
+            cls.project_state_variables = []
+        else:
+            cls.project_state_variables = state_variables
 
         # remove the shadow on every direct subclass
         for subcls in baseTools.__subclasses__():
@@ -37,8 +53,17 @@ class BaseContainer(Container):
         """Load additional containers into the in-memory list."""
         if cls.repository is None:
             raise RuntimeError("ContainerRepository not configured")
-        new_instances = cls.repository.load_project(project_name)
-        baseTools.instances.extend(new_instances)
+        load_result = cls.repository.load_project(project_name)
+
+        if isinstance(load_result, tuple):
+            new_instances, _ = load_result
+        else:
+            new_instances = load_result
+
+        new_instances_list = (
+            list(new_instances) if not isinstance(new_instances, list) else new_instances
+        )
+        baseTools.instances.extend(new_instances_list)
         return "WORKED"
 
     def rewire(self, new_instance: "BaseContainer", all_instances: List["BaseContainer"]):
@@ -85,8 +110,17 @@ class BaseContainer(Container):
         return "WORKED"
 
     @classmethod
-    def save_project_to_db(cls, project_name: str) -> str:
-        """Save all in-memory container instances to storage."""
+    def save_project_to_db(cls, project_name: str, state_variables: Optional[List[Any]] = None) -> str:
+        """Save all in-memory container instances to storage.
+
+        Parameters
+        ----------
+        project_name: str
+            The name under which the project should be saved.
+        state_variables: Optional[List[Any]]
+            Additional state metadata provided by the frontend that should be
+            persisted alongside the project document.
+        """
 
         if cls.repository is None:
             raise RuntimeError("ContainerRepository not configured")
@@ -99,7 +133,11 @@ class BaseContainer(Container):
         for c in cls.instances:
             c.containers = [p for p in c.containers if p[0] in cls.instances]
             c.prune_states()
-        cls.repository.save_project(project_name, cls.instances)
+        if isinstance(state_variables, list):
+            cls.project_state_variables = list(state_variables)
+        elif state_variables is not None:
+            cls.project_state_variables = state_variables
+        cls.repository.save_project(project_name, cls.instances, state_variables=state_variables)
         return "WORKED"
 
     @classmethod

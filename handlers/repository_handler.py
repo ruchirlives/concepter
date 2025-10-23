@@ -43,13 +43,15 @@ class ContainerRepository(ABC):
         pass
 
     @abstractmethod
-    def load_project(self, name: str) -> List[Any]:
-        """Load all containers for the given project name."""
+    def load_project(self, name: str) -> Tuple[List[Any], Optional[List[Any]]]:
+        """Load all containers and associated state variables for the given project name."""
         pass
 
     @abstractmethod
-    def save_project(self, name: str, containers: List[Any]) -> None:
-        """Persist the list of containers under the given project name."""
+    def save_project(
+        self, name: str, containers: List[Any], state_variables: Optional[List[Any]] = None
+    ) -> None:
+        """Persist the list of containers and optional state variables under the given project name."""
         pass
 
     @abstractmethod

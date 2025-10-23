@@ -29,8 +29,11 @@ class ContainerPersistenceMixin:
         """Save all containers to database."""
         data = request.get_json()
         project_name = data["project_name"]
+        state_variables = data.get("state_variables")
+        if state_variables is None and "stateVariables" in data:
+            state_variables = data.get("stateVariables")
 
-        self.container_class.save_project_to_db(project_name)
+        self.container_class.save_project_to_db(project_name, state_variables=state_variables)
         return jsonify({"message": "Containers saved successfully"})
 
     def load_containers(self):
@@ -40,7 +43,14 @@ class ContainerPersistenceMixin:
         logging.info("Container name: " + project_name)
         status = self.container_class.load_project_from_db(project_name)
         logging.info("Status: " + status)
-        return jsonify({"message": "Containers loaded successfully"})
+        state_variables = getattr(self.container_class, "project_state_variables", None)
+        return jsonify(
+            {
+                "message": "Containers loaded successfully",
+                "state_variables": state_variables,
+                "stateVariables": state_variables,
+            }
+        )
 
     def import_containers(self):
         """Import additional containers into memory."""

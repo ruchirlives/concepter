@@ -450,21 +450,25 @@ class MongoContainerRepository(ContainerRepository):
     def list_project_names(self) -> List[str]:
         return list(self.COLL.distinct("name"))
 
-    def load_project(self, name: str) -> List[Any]:
-        """Load and return the full container list for the given project.
+    def load_project(self, name: str) -> Tuple[List[Any], Optional[List[Any]]]:
+        """Load and return the full container list and state variables for the given project.
         Supports both legacy pickled format and new nodes-based format."""
         doc = self.COLL.find_one({"name": name})
         if not doc:
             raise KeyError(f"No project named {name}")
 
+        state_variables = doc.get("state_variables")
+        if state_variables is None:
+            state_variables = []
+
         # --- Legacy path (pickled blob) ---
         if "data" in doc:
-            return pickle.loads(doc["data"])
+            return pickle.loads(doc["data"]), state_variables
 
         # --- New path (nodes reference) ---
         node_ids = [n["id"] for n in doc.get("nodes", [])]
         if not node_ids:
-            return []
+            return [], state_variables
 
         docs = list(self.NODES.find({"_id": {"$in": node_ids}}))
 
@@ -478,9 +482,9 @@ class MongoContainerRepository(ContainerRepository):
         # Rehydrate edges for all loaded containers
         self.rehydrate_edges_for_containers(containers)
 
-        return containers
+        return containers, state_variables
 
-    def save_project(self, name: str, containers: List[Any]) -> None:
+    def save_project(self, name: str, containers: List[Any], state_variables: Optional[List[Any]] = None) -> None:
         """Save a project and its nodes into MongoDB."""
         ops = []
         proj_nodes = []
@@ -493,10 +497,13 @@ class MongoContainerRepository(ContainerRepository):
         if ops:
             self.NODES.bulk_write(ops, ordered=False)
 
-        # update project document with membership list
+        # update project document with membership list and optional state variables
+        update_fields: Dict[str, Any] = {"nodes": proj_nodes}
+        if state_variables is not None:
+            update_fields["state_variables"] = state_variables
         self.COLL.update_one(
             {"name": name},
-            {"$set": {"nodes": proj_nodes}, "$unset": {"data": ""}},  # remove legacy field if present
+            {"$set": update_fields, "$unset": {"data": ""}},  # remove legacy field if present
             upsert=True,
         )
 

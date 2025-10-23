@@ -286,22 +286,26 @@ class FirestoreContainerRepository(ContainerRepository):
         snaps = self.collections_coll.stream()
         return [s.id for s in snaps]
 
-    def load_project(self, name: str) -> List[Any]:
+    def load_project(self, name: str) -> Tuple[List[Any], Optional[List[Any]]]:
         doc_ref = self.collections_coll.document(name)
         snap = doc_ref.get()
         if not snap.exists:
             raise KeyError(f"No project named {name}")
         d = snap.to_dict() or {}
 
+        state_variables = d.get("state_variables")
+        if state_variables is None:
+            state_variables = []
+
         # Legacy path
         if "data" in d and isinstance(d["data"], bytes):
             import pickle
 
-            return pickle.loads(d["data"])  # nosec - assumes trusted storage
+            return pickle.loads(d["data"]), state_variables  # nosec - assumes trusted storage
 
         node_ids = [n.get("id") for n in d.get("nodes", []) if n.get("id")]
         if not node_ids:
-            return []
+            return [], state_variables
 
         containers: List[BaseContainer] = []
         id_map: Dict[str, BaseContainer] = {}
@@ -336,9 +340,11 @@ class FirestoreContainerRepository(ContainerRepository):
                     inst.setValue("allStates", all_states)
         except Exception:
             pass
-        return containers
+        return containers, state_variables
 
-    def save_project(self, name: str, containers: List[Any]) -> None:
+    def save_project(
+        self, name: str, containers: List[Any], state_variables: Optional[List[Any]] = None
+    ) -> None:
         ops = []  # not used; kept for parity with Mongo version
         proj_nodes: List[Dict[str, Any]] = []
 
@@ -388,8 +394,11 @@ class FirestoreContainerRepository(ContainerRepository):
             batch.set(self.nodes_coll.document(_id), d)
         batch.commit()
 
-        # Save project membership metadata
-        self.collections_coll.document(name).set({"nodes": proj_nodes}, merge=True)
+        # Save project membership metadata including optional state variables
+        payload: Dict[str, Any] = {"nodes": proj_nodes}
+        if state_variables is not None:
+            payload["state_variables"] = state_variables
+        self.collections_coll.document(name).set(payload, merge=True)
 
     def delete_project(self, name: str) -> bool:
         doc_ref = self.collections_coll.document(name)
