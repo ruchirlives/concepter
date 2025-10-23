@@ -46,7 +46,7 @@ class BaseContainer(Container):
         for subcls in baseTools.__subclasses__():
             if "instances" in subcls.__dict__:
                 delattr(subcls, "instances")
-        return "WORKED"
+        return "Worked"
 
     @classmethod
     def import_containers(cls, project_name: str) -> str:
