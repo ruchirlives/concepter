@@ -345,7 +345,6 @@ class FirestoreContainerRepository(ContainerRepository):
     def save_project(
         self, name: str, containers: List[Any], state_variables: Optional[List[Any]] = None
     ) -> None:
-        ops = []  # not used; kept for parity with Mongo version
         proj_nodes: List[Dict[str, Any]] = []
 
         docs_to_write: list[tuple[str, dict]] = []
@@ -387,7 +386,12 @@ class FirestoreContainerRepository(ContainerRepository):
                     pass
 
             docs_to_write.append((nid, doc))
-            proj_nodes.append({"id": doc["_id"], "Name": (doc.get("values") or {}).get("Name")})
+            proj_nodes.append(
+                {
+                    "id": doc.get("_id"),
+                    "Name": (doc.get("values") or {}).get("Name"),
+                }
+            )
         # Batch write for performance
         batch = self.client.batch()
         for _id, d in docs_to_write:
@@ -395,9 +399,10 @@ class FirestoreContainerRepository(ContainerRepository):
         batch.commit()
 
         # Save project membership metadata including optional state variables
-        payload: Dict[str, Any] = {"nodes": proj_nodes}
+        payload: Dict[str, Any] = {"nodes": self._firestore_safe(proj_nodes)}
         if state_variables is not None:
-            payload["state_variables"] = state_variables
+            payload["state_variables"] = self._firestore_safe(state_variables)
+        payload["data"] = self._firestore.DELETE_FIELD
         self.collections_coll.document(name).set(payload, merge=True)
 
     def delete_project(self, name: str) -> bool:
