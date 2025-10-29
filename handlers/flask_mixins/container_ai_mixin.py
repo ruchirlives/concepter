@@ -14,25 +14,32 @@ class ContainerAIMixin:
             self.create_containers_from_content,
             methods=["POST"],
         )
-        self.app.add_url_rule(
-            "/categorize_containers", "categorize_containers", self.categorize_containers, methods=["POST"]
-        )
+        self.app.add_url_rule("/categorize_containers", "categorize_containers", self.categorize_containers, methods=["POST"])
         self.app.add_url_rule("/embed_containers", "embed_containers", self.embed_containers, methods=["POST"])
         self.app.add_url_rule("/embed_positions", "embed_positions", self.embed_positions, methods=["POST"])
         self.app.add_url_rule("/add_similar", "add_similar", self.add_similar, methods=["POST"])
         self.app.add_url_rule("/join_similar", "join_similar", self.join_similar, methods=["POST"])
         self.app.add_url_rule("/build_relationships", "build_relationships", self.build_relationships, methods=["POST"])
-        self.app.add_url_rule(
-            "/suggest_relationship", "suggest_relationship", self.suggest_relationship, methods=["POST"]
-        )
+        self.app.add_url_rule("/suggest_relationship", "suggest_relationship", self.suggest_relationship, methods=["POST"])
         self.app.add_url_rule("/build_chain_beam", "build_chain_beam", self.build_chain_beam, methods=["POST"])
         self.app.add_url_rule("/autocomplete", "autocomplete", self.autocomplete, methods=["POST"])
-        self.app.add_url_rule(
-            "/find_similar_positions", "find_similar_positions", self.find_similar_positions, methods=["POST"]
-        )
-        self.app.add_url_rule(
-            "/search_position_z", "search_position_z", self.search_position_z_route, methods=["POST"]
-        )
+        self.app.add_url_rule("/find_similar_positions", "find_similar_positions", self.find_similar_positions, methods=["POST"])
+        self.app.add_url_rule("/search_position_z", "search_position_z", self.search_position_z_route, methods=["POST"])
+        # split long named containers into two separate linked containers
+        self.app.add_url_rule("/split_containers", "split_containers", self.split_containers, methods=["POST"])
+
+    def split_containers(self):
+        """Split containers into linked containers using openai applied to the name."""
+        data = request.get_json() or {}
+        container_id = data.get("containerId")
+        num_containers = data.get("num_containers", 2)
+
+        container = self.container_class.get_instance_by_id(container_id)
+        if not container:
+            return jsonify({"error": "Container not found"}), 404
+
+        split_count = self.container_class.split_containers(num_containers)
+        return jsonify({"split_count": split_count})
 
     def search_position_z_route(self):
         """API endpoint for vector search on position.z."""
@@ -47,7 +54,7 @@ class ContainerAIMixin:
             names = []
             for node_id in id_list:
                 node = self.container_class.repository.load_node(node_id)
-                if node is not None and hasattr(node, 'getValue'):
+                if node is not None and hasattr(node, "getValue"):
                     names.append(node.getValue("Name"))
             return jsonify({"result": names})
         except Exception as e:
@@ -102,9 +109,7 @@ class ContainerAIMixin:
                                 label = relation.get("label", "")
                             elif isinstance(relation, str):
                                 label = relation
-                            context_lines.append(
-                                f"{format_container(container)} -[{label}]-> {format_container(child)}"
-                            )
+                            context_lines.append(f"{format_container(container)} -[{label}]-> {format_container(child)}")
                             if len(context_lines) >= 20:
                                 break
                         if len(context_lines) >= 20:
@@ -118,9 +123,7 @@ class ContainerAIMixin:
                             label = relation.get("label", "")
                         elif isinstance(relation, str):
                             label = relation
-                        context_lines.append(
-                            f"{format_container(container)} -[{label}]-> {format_container(child)}"
-                        )
+                        context_lines.append(f"{format_container(container)} -[{label}]-> {format_container(child)}")
                         if len(context_lines) >= 20:
                             break
                     if len(context_lines) >= 20:
@@ -173,9 +176,7 @@ class ContainerAIMixin:
                 container_id = container.getValue("id")
                 created_ids.append(container_id)
 
-            return jsonify(
-                {"message": f"{len(new_containers)} containers created successfully", "container_ids": created_ids}
-            )
+            return jsonify({"message": f"{len(new_containers)} containers created successfully", "container_ids": created_ids})
 
         except Exception as e:
             return jsonify({"error": f"Failed to create containers: {str(e)}"}), 500
@@ -247,7 +248,7 @@ class ContainerAIMixin:
 
             # Gather parent container names
             parent_names = []
-            if hasattr(container, 'getParents'):
+            if hasattr(container, "getParents"):
                 for parent in container.getParents():
                     parent_name = parent.getValue("Name")
                     if parent_name:
@@ -288,7 +289,7 @@ class ContainerAIMixin:
                     dst_info = dst_name
 
                 # Other child names (excluding this child)
-                other_children = [c.getValue("Name") for c in all_children if c != child and hasattr(c, 'getValue')]
+                other_children = [c.getValue("Name") for c in all_children if c != child and hasattr(c, "getValue")]
                 other_children_str = ", ".join([n for n in other_children if n])
 
                 # Compose context string
@@ -327,19 +328,16 @@ class ContainerAIMixin:
         similar_positions = []
         for container in self.container_class.get_all_instances():
             # getPositions() yields (child, position_dict)
-            for child, position in getattr(container, 'getPositions', lambda: [])():
+            for child, position in getattr(container, "getPositions", lambda: [])():
                 z = None
                 if isinstance(position, dict):
                     z = position.get("z")
                 if z is not None:
                     score = self.vector_match(position_embedding, z)
                     if score > 0.77:
-                        similar_positions.append({
-                            "container_id": container.getValue("id"),
-                            "position_label": position.get("label"),
-                            "child_id": child.getValue("id"),
-                            "score": score
-                        })
+                        similar_positions.append(
+                            {"container_id": container.getValue("id"), "position_label": position.get("label"), "child_id": child.getValue("id"), "score": score}
+                        )
 
         return (
             jsonify(
@@ -474,7 +472,7 @@ class ContainerAIMixin:
 
         try:
             # Gather context using search_position_z for both subject and object container names
-            repo = getattr(self.container_class, 'repository', None)
+            repo = getattr(self.container_class, "repository", None)
             context_lines = []
             if repo is not None:
                 # Search for similar positions to subject_container Name
@@ -491,11 +489,9 @@ class ContainerAIMixin:
 
             # Optionally, pass this context to the suggest_relationship method if it supports it
             # Otherwise, just append to the prompt if you build it here
-            if hasattr(self.container_class, 'suggest_relationship'):
+            if hasattr(self.container_class, "suggest_relationship"):
                 # Try to pass context if supported, else fallback
-                relationship_description = subject_container.suggest_relationship(
-                    object_container, context_lines
-                )
+                relationship_description = subject_container.suggest_relationship(object_container, context_lines)
             else:
                 relationship_description = None
 

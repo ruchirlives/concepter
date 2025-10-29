@@ -441,3 +441,32 @@ class ConceptContainer(BaseContainer, StateTools):
             self.setPosition(container, relationship)
         else:
             raise ValueError(f"Container with ID {container_id} not found.")
+
+    def split_containers(self, num_containers: int):
+        """
+        Split this container into multiple linked containers using OpenAI using name field.
+        """
+        name = self.getValue("Name")
+        split_names = openai_handler.split_container_name(name, num_containers)
+        split_containers = []
+        original_parents = self.getParents()
+        original_children = self.containers
+
+        for split_name in split_names:
+            new_container = self.__class__()
+            new_container.setValue("Name", split_name)
+            split_containers.append(new_container)
+            # Add parents to new container
+            for parent in original_parents:
+                position = parent.getPosition(self)
+                parent.add_container(new_container, position)
+
+        # Add children to first new container
+        first_container = split_containers[0]
+        for child, position in original_children:
+            first_container.add_container(child, position)
+
+        # Delete the original container
+        self.remove_container_everywhere()
+
+        return len(split_containers)
