@@ -33,7 +33,7 @@ class ContentGenerationMixin:
         # Split a container name into multiple container names using AI.
         client = self.get_openai_client()
         prompt = (
-            f"Split the following container name into {num_containers} distinct container names. "
+            f"Split the following container name into a maximum of {num_containers} distinct container names. "
             "Each name should be concise and reflect a unique aspect of the original name. "
             "Return the names as a numbered list:\n\n"
             f"{name}\n\n"

@@ -467,6 +467,6 @@ class ConceptContainer(BaseContainer, StateTools):
             first_container.add_container(child, position)
 
         # Delete the original container
-        self.remove_container_everywhere()
+        # self.remove_container_everywhere()
 
         return len(split_containers)

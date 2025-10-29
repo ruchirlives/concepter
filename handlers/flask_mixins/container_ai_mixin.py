@@ -32,13 +32,13 @@ class ContainerAIMixin:
         """Split containers into linked containers using openai applied to the name."""
         data = request.get_json() or {}
         container_id = data.get("containerId")
-        num_containers = data.get("num_containers", 2)
+        num_containers = data.get("num_containers", 5)
 
         container = self.container_class.get_instance_by_id(container_id)
         if not container:
             return jsonify({"error": "Container not found"}), 404
 
-        split_count = self.container_class.split_containers(num_containers)
+        split_count = container.split_containers(num_containers)
         return jsonify({"split_count": split_count})
 
     def search_position_z_route(self):
