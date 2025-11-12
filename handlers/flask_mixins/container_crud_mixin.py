@@ -20,6 +20,7 @@ class ContainerCRUDMixin:
             "/write_back_containers", "write_back_containers", self.write_back_containers, methods=["POST"]
         )
         self.app.add_url_rule("/convert_to_tag", "convert_to_tag", self.convert_to_tag, methods=["POST"])
+        self.app.add_url_rule("/convert_layer_to_container", "convert_layer_to_container", self.convert_layer_to_container, methods=["POST"])
 
         # Add state management routes
         self.app.add_url_rule("/switch_state", "switch_state", self.switch_state, methods=["POST"])
@@ -45,6 +46,30 @@ class ContainerCRUDMixin:
             if container:
                 container.convert_to_tag()
         return jsonify({"message": "Containers converted to tags successfully"})
+
+    def convert_layer_to_container(self):
+        """Convert a layer to a container by creating a new container for the provided layer name then adding as its children all the containers with that layer value."""
+        data = request.get_json()
+        layer_name = data.get("layerName", "")
+        if not layer_name:
+            return jsonify({"message": "No layer name provided"}), 400
+
+        new_container = self.container_class()
+        new_container.setValue("Name", layer_name)
+
+        from container_base import baseTools
+
+        for container in baseTools.instances:
+            tags = container.getValue("Tags") or []
+            if layer_name in tags:
+                new_container.add_child(container)
+
+        return jsonify(
+            {
+                "message": f"Layer '{layer_name}' converted to container successfully",
+                "new_container_id": new_container.getValue("id"),
+            }
+        )
 
     def search_nodes(self):
         """API endpoint to search nodes by a search term."""
