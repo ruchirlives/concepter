@@ -1,4 +1,3 @@
-from helpers.random_names import random_names
 from container_base import Container, baseTools
 from typing import List, Any, Optional
 from handlers.repository_handler import ContainerRepository
@@ -12,7 +11,6 @@ class BaseContainer(Container):
     repository: ContainerRepository | None = None  # type: ignore
 
     # Class variables
-    random_names = random_names
     project_state_variables: Optional[List[Any]] = None
 
     def __init_subclass__(cls, **kwargs):

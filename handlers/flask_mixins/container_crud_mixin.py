@@ -62,7 +62,7 @@ class ContainerCRUDMixin:
         for container in baseTools.instances:
             tags = container.getValue("Tags") or []
             if layer_name in tags:
-                new_container.add_child(container)
+                new_container.add_container(container)
 
         return jsonify(
             {
