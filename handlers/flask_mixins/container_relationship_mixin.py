@@ -11,6 +11,9 @@ class ContainerRelationshipMixin:
         self.app.add_url_rule("/children/<id>", "children", self.children, methods=["GET"])
         self.app.add_url_rule("/manyChildren", "manyChildren", self.manyChildren, methods=["POST"])
         self.app.add_url_rule("/add_children", "add_children", self.add_children, methods=["POST"])
+        self.app.add_url_rule(
+            "/add_children_batch", "add_children_batch", self.add_children_batch, methods=["POST"]
+        )
         self.app.add_url_rule("/remove_children", "remove_children", self.remove_children, methods=["POST"])
         self.app.add_url_rule("/merge_containers", "merge_containers", self.merge_containers, methods=["POST"])
         self.app.add_url_rule("/get_position/<sourceId>/<targetId>", "get_position", self.get_position, methods=["GET"])
@@ -215,6 +218,12 @@ class ContainerRelationshipMixin:
         data = request.get_json()
         children_ids = data["children_ids"]
         parent_id = data["parent_id"]
+        self._add_children_to_parent(parent_id, children_ids)
+
+        return jsonify({"message": "Children added successfully"})
+
+    def _add_children_to_parent(self, parent_id, children_ids):
+        """Internal helper that encapsulates the existing add-children behavior."""
         container = self.container_class.get_instance_by_id(parent_id)
 
         print(container.getValue("Name"))
@@ -226,7 +235,59 @@ class ContainerRelationshipMixin:
             if child not in container.getChildren() and child != container:
                 container.add_container(child)
 
-        return jsonify({"message": "Children added successfully"})
+    def add_children_batch(self):
+        """Add children for many parents, mirroring the single add_children behavior per mapping."""
+        data = request.get_json() or {}
+        mappings = data.get("mappings")
+
+        if not isinstance(mappings, list):
+            return jsonify({"success": False, "message": "mappings must be provided as a list"}), 400
+
+        results = []
+        overall_success = True
+
+        for mapping in mappings:
+            parent_id = None
+            children_ids = None
+            if isinstance(mapping, dict):
+                parent_id = mapping.get("parent_id")
+                children_ids = mapping.get("children_ids")
+
+            result = {"parent_id": parent_id}
+
+            if not isinstance(mapping, dict):
+                result["success"] = False
+                result["message"] = "Each mapping must be an object with parent_id and children_ids"
+                overall_success = False
+                results.append(result)
+                continue
+
+            if not parent_id or not isinstance(children_ids, list):
+                result["success"] = False
+                result["message"] = "Each mapping must include parent_id and a list of children_ids"
+                overall_success = False
+                results.append(result)
+                continue
+
+            try:
+                self._add_children_to_parent(parent_id, children_ids)
+            except Exception as exc:
+                logging.exception("Failed to add children for parent %s", parent_id)
+                result["success"] = False
+                result["message"] = str(exc)
+                overall_success = False
+                results.append(result)
+                continue
+
+            result["success"] = True
+            results.append(result)
+
+        response_body = {"results": results}
+        if not overall_success:
+            response_body["success"] = False
+            response_body["message"] = "One or more mappings failed"
+
+        return jsonify(response_body)
 
     def remove_children(self):
         """Remove children from a parent container."""
