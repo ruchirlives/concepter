@@ -367,9 +367,9 @@ class ContainerRelationshipMixin:
         return jsonify(response_body), (200 if overall_success else 400)
 
     def _normalize_instruction(self, raw_instruction):
-        """Return a dict with action, target_id, child_id and label extracted from list/tuple/dict."""
+        """Return a dict with action, target_id, child_id, name and label extracted from list/tuple/dict."""
 
-        action = target_id = child_id = label = None
+        action = target_id = child_id = label = name = None
 
         if isinstance(raw_instruction, (list, tuple)):
             if not raw_instruction:
@@ -386,6 +386,7 @@ class ContainerRelationshipMixin:
             target_id = raw_instruction.get("id") or raw_instruction.get("containerId")
             child_id = raw_instruction.get("childId") or raw_instruction.get("child")
             label = raw_instruction.get("label") or raw_instruction.get("relationship")
+            name = raw_instruction.get("Name") or raw_instruction.get("name")
         else:
             return None
 
@@ -401,15 +402,22 @@ class ContainerRelationshipMixin:
             "action": str(action),
             "target_id": _unwrap_singleton(target_id),
             "child_id": _unwrap_singleton(child_id),
+            "name": _unwrap_singleton(name),
             "label": _unwrap_singleton(label),
         }
 
     def _apply_single_instruction(
-        self, action, target_id=None, child_id=None, label=None, placeholder_map=None
+        self,
+        action,
+        target_id=None,
+        child_id=None,
+        label=None,
+        name=None,
+        placeholder_map=None,
     ):
         """Apply a single normalized instruction and return (success, message)."""
 
-        placeholder_map = placeholder_map or {}
+        placeholder_map = placeholder_map if placeholder_map is not None else {}
         action_lower = action.lower()
 
         def resolve_identifier(identifier, role):
@@ -437,6 +445,9 @@ class ContainerRelationshipMixin:
         if action_lower == "addnew":
             new_container = self.container_class()
             new_id = new_container.getValue("id")
+
+            if name:
+                new_container.setValue("Name", str(name))
 
             if target_id and not self._is_placeholder_id(str(target_id)):
                 new_container.setValue("id", str(target_id))
