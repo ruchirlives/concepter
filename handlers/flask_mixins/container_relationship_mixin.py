@@ -15,6 +15,12 @@ class ContainerRelationshipMixin:
             "/add_children_batch", "add_children_batch", self.add_children_batch, methods=["POST"]
         )
         self.app.add_url_rule("/remove_children", "remove_children", self.remove_children, methods=["POST"])
+        self.app.add_url_rule(
+            "/apply_instruction_set",
+            "apply_instruction_set",
+            self.apply_instruction_set,
+            methods=["POST"],
+        )
         self.app.add_url_rule("/merge_containers", "merge_containers", self.merge_containers, methods=["POST"])
         self.app.add_url_rule("/get_position/<sourceId>/<targetId>", "get_position", self.get_position, methods=["GET"])
         self.app.add_url_rule("/set_position", "set_position", self.set_position, methods=["POST"])
@@ -288,6 +294,206 @@ class ContainerRelationshipMixin:
             response_body["message"] = "One or more mappings failed"
 
         return jsonify(response_body)
+
+    def apply_instruction_set(self):
+        """Apply a batch of structural instructions to containers.
+
+        The endpoint accepts either a raw JSON array or an object with an
+        ``instructions`` key whose value is the array. Each instruction can be
+        expressed as:
+
+        * A list/tuple where the first element is the action name followed by
+          optional arguments. Arguments may be provided directly (e.g. ``[
+          "remove", "123" ]``) or wrapped in single-element lists (e.g. ``[
+          "remove", ["123"] ]``) to match the original client payload pattern.
+        * A dict with ``action`` (or ``type``) plus optional ``id``, ``childId``
+          and ``label`` keys.
+
+        Placeholder IDs (e.g. ``temp-123``) are supported for newly created
+        containers. The backend will generate the real identifier, store a
+        placeholder mapping, and rewrite subsequent instructions within the same
+        request.
+        """
+
+        payload = request.get_json() or {}
+        instructions = payload.get("instructions") if isinstance(payload, dict) else payload
+
+        if not isinstance(instructions, list):
+            return jsonify({"success": False, "message": "instructions must be provided as a list"}), 400
+
+        results = []
+        overall_success = True
+        placeholder_map = {}
+
+        for index, raw_instruction in enumerate(instructions):
+            normalized = self._normalize_instruction(raw_instruction)
+            if normalized is None:
+                overall_success = False
+                results.append(
+                    {
+                        "success": False,
+                        "message": f"Instruction at index {index} is malformed; expected list/tuple or dict",
+                    }
+                )
+                continue
+
+            try:
+                success, message = self._apply_single_instruction(
+                    placeholder_map=placeholder_map, **normalized
+                )
+            except Exception as exc:  # pragma: no cover - safety net
+                logging.exception("Failed to apply instruction %s", normalized)
+                success = False
+                message = str(exc)
+
+            if not success:
+                overall_success = False
+
+            results.append(
+                {
+                    "success": success,
+                    "message": message,
+                    "action": normalized.get("action"),
+                }
+            )
+
+        if placeholder_map:
+            self._rewrite_placeholders_in_instances(placeholder_map)
+
+        response_body = {"success": overall_success, "results": results}
+        if placeholder_map:
+            response_body["placeholderMapping"] = placeholder_map
+
+        return jsonify(response_body), (200 if overall_success else 400)
+
+    def _normalize_instruction(self, raw_instruction):
+        """Return a dict with action, target_id, child_id and label extracted from list/tuple/dict."""
+
+        action = target_id = child_id = label = None
+
+        if isinstance(raw_instruction, (list, tuple)):
+            if not raw_instruction:
+                return None
+            action = raw_instruction[0]
+            if len(raw_instruction) > 1:
+                target_id = raw_instruction[1]
+            if len(raw_instruction) > 2:
+                child_id = raw_instruction[2]
+            if len(raw_instruction) > 3:
+                label = raw_instruction[3]
+        elif isinstance(raw_instruction, dict):
+            action = raw_instruction.get("action") or raw_instruction.get("type")
+            target_id = raw_instruction.get("id") or raw_instruction.get("containerId")
+            child_id = raw_instruction.get("childId") or raw_instruction.get("child")
+            label = raw_instruction.get("label") or raw_instruction.get("relationship")
+        else:
+            return None
+
+        if not action:
+            return None
+
+        def _unwrap_singleton(value):
+            if isinstance(value, (list, tuple)) and len(value) == 1:
+                return value[0]
+            return value
+
+        return {
+            "action": str(action),
+            "target_id": _unwrap_singleton(target_id),
+            "child_id": _unwrap_singleton(child_id),
+            "label": _unwrap_singleton(label),
+        }
+
+    def _apply_single_instruction(
+        self, action, target_id=None, child_id=None, label=None, placeholder_map=None
+    ):
+        """Apply a single normalized instruction and return (success, message)."""
+
+        placeholder_map = placeholder_map or {}
+        action_lower = action.lower()
+
+        def resolve_identifier(identifier, role):
+            if identifier is None:
+                return None, None
+            identifier_str = str(identifier)
+            if self._is_placeholder_id(identifier_str):
+                if identifier_str not in placeholder_map:
+                    return None, f"Unknown placeholder {identifier_str} for {role}"
+                return placeholder_map[identifier_str], None
+            return identifier_str, None
+
+        if action_lower == "remove":
+            resolved_target, error = resolve_identifier(target_id, "remove")
+            if error:
+                return False, error
+            if not resolved_target:
+                return False, "remove requires an id"
+            container = self.container_class.get_instance_by_id(resolved_target)
+            if not container:
+                return False, f"Container {resolved_target} not found"
+            container.delete()
+            return True, f"Container {resolved_target} removed"
+
+        if action_lower == "addnew":
+            new_container = self.container_class()
+            new_id = new_container.getValue("id")
+
+            if target_id and not self._is_placeholder_id(str(target_id)):
+                new_container.setValue("id", str(target_id))
+                new_id = new_container.getValue("id")
+            elif target_id and self._is_placeholder_id(str(target_id)):
+                placeholder_map[str(target_id)] = new_id
+
+            return True, f"Container {new_id} created"
+
+        if action_lower in {"addchild", "removechild", "modifychild"}:
+            resolved_target, error = resolve_identifier(target_id, "parent")
+            if error:
+                return False, error
+            resolved_child, error_child = resolve_identifier(child_id, "child")
+            if error_child:
+                return False, error_child
+
+            if not resolved_target or not resolved_child:
+                return False, f"{action} requires both id and childId"
+
+            parent = self.container_class.get_instance_by_id(resolved_target)
+            child = self.container_class.get_instance_by_id(resolved_child)
+
+            if not parent or not child:
+                missing = resolved_target if not parent else resolved_child
+                return False, f"Container {missing} not found"
+
+            if action_lower == "addchild":
+                parent.add_container(child, label)
+                return True, f"Child {resolved_child} added to {resolved_target}"
+
+            if action_lower == "removechild":
+                parent.remove_container(child)
+                return True, f"Child {resolved_child} removed from {resolved_target}"
+
+            if action_lower == "modifychild":
+                parent.setPosition(child, label)
+                return True, f"Child {resolved_child} updated on {resolved_target}"
+
+        return False, f"Unknown action '{action}'"
+
+    @staticmethod
+    def _is_placeholder_id(identifier):
+        return isinstance(identifier, str) and identifier.startswith("temp-")
+
+    def _rewrite_placeholders_in_instances(self, placeholder_map):
+        """Replace any lingering placeholder ids on in-memory instances and child edges."""
+
+        if not placeholder_map:
+            return
+
+        for container in list(self.container_class.instances):
+            current_id = container.getValue("id")
+            if current_id in placeholder_map:
+                # If a container somehow retained a placeholder, update it to the mapped id
+                container.setValue("id", placeholder_map[current_id])
+
 
     def remove_children(self):
         """Remove children from a parent container."""
