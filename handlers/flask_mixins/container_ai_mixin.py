@@ -1,6 +1,8 @@
 from flask import jsonify, request
 from handlers.openai_handler import openai_handler
 from collections import deque
+import json
+import re
 
 
 class ContainerAIMixin:
@@ -27,6 +29,7 @@ class ContainerAIMixin:
         self.app.add_url_rule("/search_position_z", "search_position_z", self.search_position_z_route, methods=["POST"])
         # split long named containers into two separate linked containers
         self.app.add_url_rule("/split_containers", "split_containers", self.split_containers, methods=["POST"])
+        self.app.add_url_rule("/generate_graph", "generate_graph", self.generate_graph, methods=["POST"])
 
     def split_containers(self):
         """Split containers into linked containers using openai applied to the name."""
@@ -151,6 +154,57 @@ class ContainerAIMixin:
         except Exception as e:
             print(f"OpenAI API error: {e}")
         return jsonify({"suggestions": []}), 500
+
+    def generate_graph(self):
+        data = request.get_json() or {}
+        text = data.get("text") or data.get("content")
+
+        if not text:
+            return jsonify({"error": "text is required"}), 400
+
+        client = openai_handler.get_openai_client()
+        prompt = (
+            "You are an expert at translating text into graph instructions. "
+            "Return a JSON array of instruction objects that can be posted to /apply_instruction_set. "
+            "Valid actions are addNew (with optional id and Name), addChild (with id, childId, and optional label), "
+            "remove, removeChild, and modifyChild. Use placeholders like temp-1 for new ids referenced later. "
+            "Keep labels short. Use only the JSON array—no comments or markdown fences.\n\n"
+            f"Source text:\n{text}"
+        )
+
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                response_format={"type": "text"},
+                temperature=0.6,
+                max_completion_tokens=800,
+            )
+        except Exception as exc:  # pragma: no cover - safety net
+            return jsonify({"error": f"Failed to generate instructions: {exc}"}), 500
+
+        raw_content = response.choices[0].message.content.strip()
+        if raw_content.startswith("```"):
+            raw_content = re.sub(r"^```(?:json)?\s*", "", raw_content)
+            raw_content = re.sub(r"\s*```$", "", raw_content)
+
+        try:
+            instructions = json.loads(raw_content)
+        except json.JSONDecodeError:
+            try:
+                parsed = json.loads(f"{{\"instructions\": {raw_content}}}")
+                instructions = parsed.get("instructions")
+            except Exception:
+                return jsonify({"error": "Model output could not be parsed as JSON instructions"}), 500
+
+        if isinstance(instructions, dict) and "instructions" in instructions:
+            instructions = instructions.get("instructions")
+
+        if not isinstance(instructions, list):
+            return jsonify({"error": "Generated instructions must be a list"}), 400
+
+        with self.app.test_request_context(json={"instructions": instructions}):
+            return self.apply_instruction_set()
 
     def create_containers_from_content(self):
         """Create containers from raw text content using OpenAI."""
