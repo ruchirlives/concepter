@@ -118,6 +118,16 @@ class baseTools:
         container_obj.setValue("tags", ["delete"])
 
     @classmethod
+    def clear(cls):
+        """
+        Clear all container instances.
+        This deletes all containers from the instances list.
+        """
+        count = len(cls.instances)
+        cls.instances.clear()
+        print(f"Cleared all containers. {count} containers deleted.")
+
+    @classmethod
     def get_all_subcontainers(cls, container_id):
         container = cls.instances[container_id]
         subcontainers = container.getChildren()
@@ -193,6 +203,9 @@ class baseTools:
 
         # Deepcopy the values array
         new_container.values = copy.deepcopy(self.values)
+        # Ensure stream-related state is not shared between clones
+        if hasattr(self, "takes"):
+            new_container.takes = copy.deepcopy(self.takes)
         new_container.containers = []
 
         name = f"{self.getValue('Name')} (Clone)"
