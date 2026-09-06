@@ -71,20 +71,20 @@ class baseTools:
 
     @classmethod
     def get_instance_by_name(cls, name):
-        for instance in cls.instances:
-            if instance.getValue("Name") == name:
-                return instance
+        for instance in cls.get_all_containers():
+            if instance is not None and hasattr(instance, "getValue"):
+                if instance.getValue("Name") == name:
+                    return instance
         return None
 
     @classmethod
     def get_instance_by_id(cls, id):
-        for instance in cls.instances:
-            # Check if the id is a string or an integer
-            id = str(id)
-            cid = str(instance.getValue("id"))
-
-            if cid == id:
-                return instance
+        id_str = str(id)
+        for instance in cls.get_all_containers():
+            if instance is not None and hasattr(instance, "getValue"):
+                cid = str(instance.getValue("id"))
+                if cid == id_str:
+                    return instance
         return None
 
     @classmethod
@@ -96,10 +96,11 @@ class baseTools:
 
     @classmethod
     def get_container(cls, container_name):
-        for container in cls.instances:
-            # find any case match inside the container name
-            if container_name.lower() in container.getValue("Name").lower():
-                return container
+        for container in cls.get_all_containers():
+            if container is not None and hasattr(container, "getValue"):
+                cname = container.getValue("Name")
+                if cname and container_name.lower() in str(cname).lower():
+                    return container
         return None
 
     def delete(self):
@@ -109,13 +110,16 @@ class baseTools:
 
     @classmethod
     def remove_container_everywhere(cls, container_obj):
-        cls.instances.remove(container_obj)
-        # Iterate through all existing containers and remove any references to the deleted container in it subcontainers
-        for container in cls.instances:
-            container.remove_container(container_obj)
+        if container_obj in cls.instances:
+            cls.instances.remove(container_obj)
+        # Iterate through all existing containers and remove any references to the deleted container in its subcontainers
+        for container in cls.get_all_containers():
+            if container is not None and hasattr(container, "remove_container"):
+                container.remove_container(container_obj)
 
         # set tags to 'delete'
-        container_obj.setValue("tags", ["delete"])
+        if hasattr(container_obj, "setValue"):
+            container_obj.setValue("tags", ["delete"])
 
     @classmethod
     def clear(cls):
@@ -142,21 +146,24 @@ class baseTools:
     def getParents(self):
         parents = []
         cls = type(self)
-        for container in cls.instances:
-            if container.checkDirectDescendents(self):
-                parents.append(container)
+        for container in cls.get_all_containers():
+            if container is not None and hasattr(container, "checkDirectDescendents") and callable(container.checkDirectDescendents):
+                if container.checkDirectDescendents(self):
+                    parents.append(container)
         return parents
 
     def getChildren(self):
         children = []
         for container, position in self.containers:
-            children.append(container)
+            if container is not None:
+                children.append(container)
         return children
 
     def getPositions(self):
         positions = []
         for container, position in self.containers:
-            positions.append((container, position))
+            if container is not None:
+                positions.append((container, position))
         return positions
 
     def getPosition(self, target):
@@ -171,24 +178,51 @@ class baseTools:
         # print(f"Setting position of {target.getValue('Name')} to {position}")
         for i, (container, pos) in enumerate(self.containers):
             if container == target:
-                self.containers[i] = (container, position)
+                relationship = self.containers[i]
+                self.containers[i] = (
+                    relationship.with_position(position)
+                    if hasattr(relationship, "with_position")
+                    else (container, position)
+                )
                 return True
 
         # If target is not found, add it to the list with the new position
-        self.containers.append((target, position))
+        from container_base.containerRelationship import make_relationship
+        self.containers.append(make_relationship(target, position))
         return False
 
-    def clone_container(self):
+    def clone_container(self, attach_to_parents=True):
         """
         Creates a deep copy of the container instance.
+        When called as a top-level clone, attach the cloned root to the same
+        direct parent slots as the source container. Recursive child clones stay
+        only under the cloned root.
         :return: A new instance of the container with copied attributes.
         """
         new_container = self.clone_single_container()
 
-        for container, position in self.containers:
-            cloned_subcontainer = container.clone_container()
-            new_container.containers.append((cloned_subcontainer, position))
+        from container_base.containerRelationship import ensure_relationship, is_xref_relationship
+
+        for item in self.containers:
+            relationship = ensure_relationship(item)
+            container, _ = relationship
+            if container is None:
+                new_container.containers.append(relationship.with_child(None))
+                continue
+            if is_xref_relationship(relationship):
+                # Detaching an outer xref keeps nested xrefs as references; it
+                # must not silently flatten their shared source graphs.
+                new_container.containers.append(relationship.with_child(container))
+                continue
+            cloned_subcontainer = container.clone_container(attach_to_parents=False)
+            new_container.containers.append(relationship.with_child(cloned_subcontainer))
             self.instances.remove(cloned_subcontainer)  # Remove the original container from the instances list
+
+        if attach_to_parents:
+            for parent in self.getParents():
+                for child, position in parent.containers:
+                    if child is self:
+                        parent.add_container(new_container, position)
 
         return new_container
 
@@ -203,9 +237,6 @@ class baseTools:
 
         # Deepcopy the values array
         new_container.values = copy.deepcopy(self.values)
-        # Ensure stream-related state is not shared between clones
-        if hasattr(self, "takes"):
-            new_container.takes = copy.deepcopy(self.takes)
         new_container.containers = []
 
         name = f"{self.getValue('Name')} (Clone)"
@@ -274,40 +305,7 @@ class baseTools:
             unique_containers = list(reversed(unique_containers))
 
         cls.instances = unique_containers
-        keep_type = "last" if keep_last else "first"
-        print(f"Deduplication complete (keeping {keep_type}). {len(cls.instances)} unique containers remain.")
-
-    @classmethod
-    def get_all_containers(cls):
-        all_containers = set()
-        visited = set()
-
-        def add_container(container):
-            if container in visited:
-                return
-            visited.add(container)
-            all_containers.add(container)
-            for child in container.getChildren():
-                add_container(child)
-
-        for container in cls.instances:
-            cls.recurseFunc(container, add_container)
-
-        return list(all_containers)  # ✅ convert back to list before returning
-
-    def recurseFunc(self, func, max_depth=5, current_depth=0, visited=None):
-        if visited is None:
-            visited = set()
-
-        if current_depth >= max_depth or self in visited:
-            return
-
-        visited.add(self)
-        func(self)  # apply before recursing
-
-        for container in self.containers:
-            obj = container[0]
-            obj.recurseFunc(func, max_depth, current_depth + 1, visited)
+        return unique_containers
 
     def checkIsAnyDescendent(self, source_containers):
         for container in source_containers:
@@ -381,12 +379,49 @@ class baseTools:
         if child_container.checkIsDescendent(self):
             print("Note: container is already in the descendents")
 
-        # Add the container to the listchild_ of containers
-        self.containers.append((child_container, position))
+        # Add the container to the list of containers
+        from container_base.containerRelationship import make_relationship
+        self.containers.append(make_relationship(child_container, position))
 
     def remove_container(self, container):
         # Remove the container from the list of containers
         self.containers = [c for c in self.containers if c[0] != container]
+
+    def remove_container_by_relationship_id(self, relationship_id):
+        """Remove a single child edge identified by its relationship_id."""
+        from container_base.containerRelationship import ContainerRelationship
+        self.containers = [
+            c for c in self.containers
+            if not (isinstance(c, ContainerRelationship) and c.relationship_id == relationship_id)
+        ]
+
+    def set_position_by_relationship_id(self, relationship_id, position):
+        """Update the position of a single child edge identified by its relationship_id."""
+        from container_base.containerRelationship import ContainerRelationship
+        for i, relationship in enumerate(self.containers):
+            if isinstance(relationship, ContainerRelationship) and relationship.relationship_id == relationship_id:
+                self.containers[i] = relationship.with_position(position)
+                return True
+        return False
+
+    @classmethod
+    def get_all_containers(cls):
+        result = []
+        visited = set()
+
+        def visit(container):
+            if container is None or id(container) in visited:
+                return
+            visited.add(id(container))
+            result.append(container)
+            if hasattr(container, "getChildren") and callable(container.getChildren):
+                for child in container.getChildren():
+                    visit(child)
+
+        for container in cls.instances:
+            visit(container)
+
+        return result
 
     def parse_date_auto(self, input_string):
         if not input_string:

@@ -1,4 +1,5 @@
 from .baseTools import baseTools
+from .containerRelationship import relationship_metadata
 import gc
 
 # from random_names import random_names
@@ -40,3 +41,35 @@ class Container(baseTools):
             recurse(inst)
 
         return seen_ids
+
+    def to_dict(self):
+        """
+        Fallback serialization for base/unknown container types.
+        """
+        return {
+            "id": self.getValue("id"),
+            "type": type(self).__name__,
+            "values": self.values,
+            "containers": [
+                {
+                    "id": (
+                        child.getValue("id")
+                        if child is not None
+                        else getattr(relationship, "child_id", "")
+                    ),
+                    "position": pos,
+                    **relationship_metadata(relationship, child),
+                }
+                for relationship in self.containers
+                for child, pos in [relationship]
+            ]
+        }
+
+    def from_dict(self, data):
+        """
+        Fallback deserialization for base/unknown container types.
+        """
+        if "values" in data:
+            import copy
+            self.values = copy.deepcopy(data["values"])
+
